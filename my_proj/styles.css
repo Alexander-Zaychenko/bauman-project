@@ -55,34 +55,29 @@ body {
     color: #2563eb;
 }
 
+.auth a {
+    font-size: 0.9rem;
+    text-decoration: none;
+    color: #2563eb;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid #2563eb;
+}
+
+/* REGISTER (синий фон, белый текст) */
+.register a {
+    font-size: 0.9rem;
+    text-decoration: none;
+    color: #ffffff;
+    background-color: #2563eb;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid #2563eb;
+    margin-left: 8px;
+}
+
 .logo span {
     color: #111827;
-}
-
-/* SEARCH */
-
-.search-form {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.search-form input {
-    flex: 1;
-    padding: 8px 12px;
-    border-radius: 999px;
-    border: 1px solid #d1d5db;
-    font-size: 0.95rem;
-}
-
-.search-form button {
-    padding: 8px 16px;
-    border-radius: 999px;
-    border: none;
-    font-size: 0.95rem;
-    cursor: pointer;
-    background-color: #2563eb;
-    color: #ffffff;
 }
 
 /* AUTH */
@@ -97,6 +92,11 @@ body {
 }
 
 /* MAIN */
+
+.hero h1 .brand {
+    color: #2563eb;
+    font-weight: 800; /* опционально */
+}
 
 .site-main {
     padding: 20px 0 40px;
