@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Регистрация — SkillUp</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="images/SkillUpSquare.png">
+    <style>
+        .login-wrapper {
+            max-width: 480px;
+            margin: 30px auto;
+            padding: 18px;
+        }
+
+        .login-form label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .login-form input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .login-form button {
+            background: #2563eb;
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .message {
+            display: none;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .message.success {
+            background: #ecfdf5;
+            color: #065f46;
+        }
+
+        .message.error {
+            background: #fff1f2;
+            color: #9f1239;
+        }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <div class="container header-inner">
+        <div class="logo">
+            <a href="index.html">
+                <img src="images/SkillUpSquare.png" alt="SkillUp logo" class="logo-img">
+                <span class="brand-text">SkillUp<span>.ru</span></span>
+            </a>
+        </div>
+        <div class="auth">
+            <!-- no back button here per request -->
+        </div>
+    </div>
+</header>
+
+<main class="site-main">
+    <div class="container login-wrapper">
+        <section class="card">
+            <h2>Создать аккаунт</h2>
+
+            <div id="registerMessage" class="message"></div>
+
+            <form id="registerForm" class="login-form">
+                <label for="registerName">Имя</label>
+                <input id="registerName" type="text" placeholder="Ваше имя" required>
+
+                <label for="registerEmail">Email</label>
+                <input id="registerEmail" type="email" placeholder="you@example.com" required>
+
+                <label for="registerPassword">Пароль</label>
+                <input id="registerPassword" type="password" placeholder="••••••••" required>
+
+                <button type="submit">Зарегистрироваться</button>
+            </form>
+
+            <p style="margin-top:12px">Уже есть аккаунт? <a href="login.html">Войти</a></p>
+        </section>
+    </div>
+</main>
+
+<script src="scripts.js"></script>
+
+</body>
+</html>
