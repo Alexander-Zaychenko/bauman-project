@@ -27,18 +27,25 @@
     <div class="container">
         <section class="card" style="margin:18px 0">
             <h2>Все запросы</h2>
-            <p class="hero-note">Посмотрите все пользовательские запросы или создайте новый.</p>
+
+            <div class="class-grid" style="margin-top:12px; display:flex; flex-wrap:wrap; gap:8px">
+                <a href="#" data-subject="Математика" class="class-card">Математика</a>
+                <a href="#" data-subject="Алгебра" class="class-card">Алгебра</a>
+                <a href="#" data-subject="Геометрия" class="class-card">Геометрия</a>
+                <a href="#" data-subject="Русский язык" class="class-card">Русский язык</a>
+                <a href="#" data-subject="Иностранный язык" class="class-card">Иностранный язык</a>
+                <a href="#" data-subject="Информатика" class="class-card">Информатика</a>
+                <a href="#" data-subject="Биология" class="class-card">Биология</a>
+                <a href="#" data-subject="География" class="class-card">География</a>
+                <a href="#" data-subject="История" class="class-card">История</a>
+                <a href="#" data-subject="Обществознание" class="class-card">Обществознание</a>
+                <a href="#" data-subject="Физика" class="class-card">Физика</a>
+                <a href="#" data-subject="Химия" class="class-card">Химия</a>
+                <a href="#" data-subject="Литература" class="class-card">Литература</a>
+            </div>
 
             <form id="requestForm" style="margin-top:12px;display:grid;gap:10px;max-width:780px">
                 <input id="reqTitle" placeholder="Краткий заголовок запроса" required style="padding:10px;border-radius:8px;border:1px solid #e5e7eb">
-                <select id="reqSubject" style="padding:10px;border-radius:8px;border:1px solid #e5e7eb">
-                    <option value="Математика">Математика</option>
-                    <option value="Алгебра">Алгебра</option>
-                    <option value="Геометрия">Геометрия</option>
-                    <option value="Русский язык">Русский язык</option>
-                    <option value="Иностранный язык">Иностранный язык</option>
-                </select>
-                <textarea id="reqText" rows="4" placeholder="Описание запроса" style="padding:10px;border-radius:8px;border:1px solid #e5e7eb"></textarea>
                 <div>
                     <button type="submit" class="btn-create">Создать запрос</button>
                 </div>
@@ -67,12 +74,4 @@
 <script src="scripts.js"></script>
 
 </body>
-</html>
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SkillUp - Все заявки</title>
-    <link rel="stylesheet" href="styles.css">
 </html>

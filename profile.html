@@ -77,13 +77,24 @@
             <div class="profile-info">
                 <h3 id="userName">Гость</h3>
                 <div id="userEmail" class="muted"></div>
-                <a href="#" id="logoutBtn" class="btn-logout">Выйти</a>
+                <div style="margin-top:8px">
+                    <a href="edit-profile.html" id="editProfileBtn" class="btn-logout" style="background:#2563eb">Редактировать профиль</a>
+                    <a href="#" id="logoutBtn" class="btn-logout" style="background:#ef4444; margin-left:8px">Выйти</a>
+                </div>
             </div>
         </div>
 
         <section class="mt-18" style="margin-top:18px">
             <h4>О себе</h4>
             <p id="userBio" class="muted-dark">Здесь вы можете добавить информацию о себе.</p>
+
+            <div id="profileDetails" style="margin-top:12px">
+                <div>Возраст: <span id="userAge" class="muted-dark">—</span></div>
+                <div>Класс: <span id="userClass" class="muted-dark">—</span></div>
+                <div>Город: <span id="userCity" class="muted-dark">—</span></div>
+                <div>Средний балл: <span id="userAvg" class="muted-dark">—</span></div>
+                <div>Пол: <span id="userGender" class="muted-dark">—</span></div>
+            </div>
         </section>
     </div>
 </main>

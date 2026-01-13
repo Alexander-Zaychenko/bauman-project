@@ -79,14 +79,41 @@
             <div id="registerMessage" class="message"></div>
 
             <form id="registerForm" class="login-form">
-                <label for="registerName">Имя</label>
-                <input id="registerName" type="text" placeholder="Ваше имя" required>
+                <label for="registerFirstName">Имя</label>
+                <input id="registerFirstName" type="text" placeholder="Ваше имя" required>
+
+                <label for="registerLastName">Фамилия</label>
+                <input id="registerLastName" type="text" placeholder="Ваша фамилия" required>
 
                 <label for="registerEmail">Email</label>
                 <input id="registerEmail" type="email" placeholder="you@example.com" required>
 
                 <label for="registerPassword">Пароль</label>
                 <input id="registerPassword" type="password" placeholder="••••••••" required>
+
+                <hr style="margin:12px 0">
+                <div style="font-weight:600; margin-bottom:8px">Дополнительно (необязательно)</div>
+
+                <label for="registerAge">Возраст</label>
+                <input id="registerAge" type="number" min="1" max="120" placeholder="Возраст">
+
+                <label for="registerCity">Город</label>
+                <input id="registerCity" type="text" placeholder="Город">
+
+                <label for="registerClass">Класс</label>
+                <input id="registerClass" type="number" step="1" min="1" max="11" placeholder="Например: 10">
+
+                <label for="registerAvg">Средний балл (2.00 - 5.00)</label>
+                <input id="registerAvg" type="number" step="0.01" min="2" max="5" placeholder="Например: 4.45">
+
+                <label for="registerGender">Пол</label>
+                <select id="registerGender" required>
+                    <option value="male">Мужской</option>
+                    <option value="female">Женский</option>
+                </select>
+
+                <label for="registerBio">О себе</label>
+                <textarea id="registerBio" placeholder="Коротко о себе" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:8px; min-height:80px"></textarea>
 
                 <button type="submit">Зарегистрироваться</button>
             </form>

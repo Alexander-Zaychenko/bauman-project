@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>Редактировать профиль — SkillUp</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="images/SkillUpSquare.png">
+    <style>
+        .edit-wrapper { max-width: 640px; margin: 28px auto; padding: 18px; }
+        .edit-wrapper label { display:block; margin-bottom:6px; font-weight:600 }
+        .edit-wrapper input, .edit-wrapper select, .edit-wrapper textarea { width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px; margin-bottom:12px }
+        .edit-wrapper button { background:#2563eb; color:#fff; padding:10px 14px; border-radius:10px; border:none; font-weight:700; cursor:pointer }
+    </style>
+</head>
+<body>
+<header class="site-header">
+    <div class="container header-inner">
+        <div class="logo">
+            <a href="index.html">
+                <img src="images/SkillUpSquare.png" alt="SkillUp logo" class="logo-img">
+                <span class="brand-text">SkillUp<span>.ru</span></span>
+            </a>
+        </div>
+    </div>
+</header>
+
+<main class="site-main">
+    <div class="container edit-wrapper card">
+        <h2>Редактировать профиль</h2>
+        <form id="editProfileForm">
+            <label for="editFirstName">Имя (обязательно)</label>
+            <input id="editFirstName" type="text" required>
+
+            <label for="editLastName">Фамилия (обязательно)</label>
+            <input id="editLastName" type="text" required>
+
+            <label for="editEmail">Email</label>
+            <input id="editEmail" type="email" disabled>
+
+            <label for="editAge">Возраст</label>
+            <input id="editAge" type="number" min="1" max="120">
+
+            <label for="editCity">Город</label>
+            <input id="editCity" type="text">
+
+            <label for="editClass">Класс</label>
+            <input id="editClass" type="number" step="1" min="1" max="11" placeholder="Например: 10">
+
+            <label for="editAvg">Средний балл (2.00 - 5.00)</label>
+            <input id="editAvg" type="number" step="0.01" min="2" max="5" placeholder="Например: 4.45">
+
+            <label for="editGender">Пол</label>
+            <select id="editGender" required>
+                <option value="male">Мужской</option>
+                <option value="female">Женский</option>
+            </select>
+
+            <label for="editBio">О себе</label>
+            <textarea id="editBio" style="min-height:100px"></textarea>
+
+            <button type="submit">Сохранить</button>
+        </form>
+    </div>
+</main>
+
+<script src="scripts.js"></script>
+</body>
+</html>
