@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Создать запрос — SkillUp</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="images/SkillUpSquare.png">
+</head>
+<body>
+
+<header class="site-header">
+    <div class="container header-inner">
+        <div class="logo">
+            <a href="index.html">
+                <img src="images/SkillUpSquare.png" alt="SkillUp logo" class="logo-img">
+                <span class="brand-text">SkillUp<span>.ru</span></span>
+            </a>
+        </div>
+        <div class="auth">
+            <a href="login.html">Войти</a>
+        </div>
+    </div>
+</header>
+
+<main class="site-main">
+    <div class="container">
+        <section class="card" style="margin:18px 0">
+            <h2>Создать запрос</h2>
+
+            <form id="createRequestForm" style="margin-top:12px;display:grid;gap:15px;max-width:600px">
+                <div>
+                    <label for="subject" style="display:block;margin-bottom:5px;font-weight:600;">Предмет</label>
+                    <select id="subject" required style="width:100%;padding:10px;border-radius:8px;border:1px solid #e5e7eb;">
+                        <option value="">Выберите предмет</option>
+                        <option value="Математика">Математика</option>
+                        <option value="Алгебра">Алгебра</option>
+                        <option value="Геометрия">Геометрия</option>
+                        <option value="Русский язык">Русский язык</option>
+                        <option value="Иностранный язык">Иностранный язык</option>
+                        <option value="Информатика">Информатика</option>
+                        <option value="Биология">Биология</option>
+                        <option value="География">География</option>
+                        <option value="История">История</option>
+                        <option value="Обществознание">Обществознание</option>
+                        <option value="Физика">Физика</option>
+                        <option value="Химия">Химия</option>
+                        <option value="Литература">Литература</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="classFrom" style="display:block;margin-bottom:5px;font-weight:600;">Класс от</label>
+                    <input type="number" id="classFrom" min="1" max="11" required style="width:100%;padding:10px;border-radius:8px;border:1px solid #e5e7eb;">
+                </div>
+
+                <div>
+                    <label for="classTo" style="display:block;margin-bottom:5px;font-weight:600;">Класс до</label>
+                    <input type="number" id="classTo" min="1" max="11" required style="width:100%;padding:10px;border-radius:8px;border:1px solid #e5e7eb;">
+                </div>
+
+                <div>
+                    <label for="type" style="display:block;margin-bottom:5px;font-weight:600;">Тип запроса</label>
+                    <select id="type" required style="width:100%;padding:10px;border-radius:8px;border:1px solid #e5e7eb;margin-bottom:8px;">
+                        <option value="ask">Нужна помощь</option>
+                        <option value="help">Хочу помочь</option>
+                    </select>
+                    <label for="description" style="display:block;margin-bottom:5px;font-weight:600;">Краткое описание</label>
+                    <textarea id="description" placeholder="Опишите ваш запрос..." required style="width:100%;padding:10px;border-radius:8px;border:1px solid #e5e7eb;min-height:100px;resize:vertical;"></textarea>
+                </div>
+
+                <div>
+                    <button type="submit" class="btn-create">Создать запрос</button>
+                </div>
+            </form>
+        </section>
+    </div>
+</main>
+
+<footer class="site-footer">
+    <div class="container footer-inner">
+        <div class="footer-left">
+            <div class="logo footer-logo"><a href="index.html">SkillUp<span>.ru</span></a></div>
+            <p class="footer-copy">© 2025 SkillUp.</p>
+        </div>
+        <nav class="footer-nav">
+            <a href="#">О нас</a>
+            <a href="#">Контакты</a>
+        </nav>
+    </div>
+</footer>
+
+<script src="scripts.js"></script>
+
+</body>
+</html>

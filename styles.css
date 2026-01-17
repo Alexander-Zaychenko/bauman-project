@@ -217,6 +217,67 @@ body {
     transform: translateY(-4px);
 }
 
+/* Request card (tile) style for all-requests list */
+.request-card {
+    width: 100%;
+    padding: 18px 22px;
+    border-radius: 10px;
+    background-color: #ffffff;
+    border: 1px solid #e2e5ec;
+    box-shadow: none;
+    cursor: pointer;
+}
+.request-card .class-title {
+    font-size: 1.15rem;
+    margin-bottom: 6px;
+}
+.request-card .class-meta {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #6b7280;
+}
+.request-details {
+    color: #374151;
+    margin-top: 12px;
+    font-size: 0.95rem;
+}
+
+/* make request tiles links look like tiles */
+.request-link { display: block; text-decoration: none; color: inherit; }
+.request-link:focus { outline: 2px solid rgba(37,99,235,0.25); }
+
+/* request page layout */
+.request-grid { display: grid; grid-template-columns: 1fr 300px; gap: 18px; align-items: start; }
+.request-main { padding: 20px; }
+.request-title { margin: 0 0 8px 0; font-size: 1.5rem; }
+.request-sub { color: #6b7280; font-weight: 600; margin-bottom: 14px; }
+.request-body { color: #374151; white-space: pre-wrap; }
+.request-side { padding: 16px; }
+.provider { text-align: left; }
+.provider-avatar { width: 64px; height: 64px; border-radius: 8px; background:#e6eef6; display:inline-flex; align-items:center; justify-content:center; font-weight:700; margin-bottom:10px; }
+.provider-name { font-weight:700; margin-bottom:6px; }
+.provider-meta { color:#6b7280; font-size:0.95rem; margin-bottom:6px; }
+
+/* Selected subject highlight */
+.class-card.selected {
+    background-color: #e6f3ff;
+    border-color: #cfe6ff;
+}
+
+/* Request type badges */
+.request-type {
+    font-size: 0.8rem;
+    padding: 6px 8px;
+    border-radius: 8px;
+    font-weight:700;
+}
+.request-type--ask {
+    background: #ffefef; color: #b91c1c; border: 1px solid #fecaca;
+}
+.request-type--help {
+    background: #ecfdf5; color: #065f46; border: 1px solid #bbf7d0;
+}
+
 /* POPULAR */
 
 /* Requests row: popular (left) + create request (right) */

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Запрос — SkillUp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/png" href="images/SkillUpSquare.png">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="logo">
+      <a href="index.html">
+        <img src="images/SkillUpSquare.png" alt="SkillUp logo" class="logo-img">
+        <span class="brand-text">SkillUp<span>.ru</span></span>
+      </a>
+    </div>
+    <div class="auth">
+      <a href="login.html">Войти</a>
+    </div>
+  </div>
+</header>
+
+<main class="site-main">
+  <div class="container">
+    <section class="card" style="margin:18px 0">
+      <a href="index.html" style="display:inline-block;margin-bottom:12px;color:#2563eb;">← Все запросы</a>
+      <div id="requestRoot">Загрузка...</div>
+    </section>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-left">
+      <div class="logo footer-logo"><a href="index.html">SkillUp<span>.ru</span></a></div>
+      <p class="footer-copy">© 2025 SkillUp.</p>
+    </div>
+  </div>
+</footer>
+
+<script src="scripts.js"></script>
+<script>
+  // Render a single request based on id query param
+  function getQueryParam(name) {
+    try { return new URLSearchParams(window.location.search).get(name); } catch (e) { return null; }
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    const id = getQueryParam('id');
+    const root = document.getElementById('requestRoot');
+    const list = (window.getRequests && getRequests()) || [];
+    const item = list.find(it => String(it.id) === String(id));
+    if (!item) {
+      root.innerHTML = '<div style="color:#6b7280">Запрос не найден.</div>';
+      return;
+    }
+    // Build layout: left column with details, right column with provider profile
+    const el = document.createElement('div');
+    el.className = 'request-page';
+    el.innerHTML = `
+      <div class="request-grid">
+        <div class="request-main card">
+          <h1 class="request-title">${escapeHtml(item.title)}</h1>
+          <div class="request-sub">${escapeHtml(item.subject)} ${item.classFrom && item.classTo ? ` — ${escapeHtml(item.classFrom)}-${escapeHtml(item.classTo)} класс` : ''}</div>
+          <div class="request-body">${escapeHtml(item.text || item.description)}</div>
+        </div>
+        <aside class="request-side card">
+          <div class="provider">
+            <div class="provider-avatar">〤</div>
+            <div class="provider-name">${ escapeHtml(item.creator && item.creator.name ? item.creator.name : 'Профиль автора') }</div>
+            <div class="provider-meta">ФИО: ${ escapeHtml(item.creator && item.creator.name ? item.creator.name : 'Не указано') }</div>
+            <div class="provider-meta">Средний балл: ${ escapeHtml((item.creator && item.creator.avgGrade) ? item.creator.avgGrade : '—') }</div>
+            <div class="provider-meta">Класс: ${ escapeHtml((item.creator && item.creator.schoolClass) ? item.creator.schoolClass : '—') }</div>
+          </div>
+        </aside>
+      </div>
+    `;
+    root.innerHTML = '';
+    root.appendChild(el);
+  });
+</script>
+</body>
+</html>

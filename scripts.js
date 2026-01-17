@@ -91,6 +91,24 @@ function saveRequests(list) {
   localStorage.setItem('requests', JSON.stringify(list));
 }
 
+function addRequest(data) {
+  const list = getRequests();
+  const user = checkAuth();
+  const creator = user ? { id: user.id, name: user.name || (user.lastName + ' ' + user.firstName).trim(), avgGrade: user.avgGrade || '', schoolClass: user.schoolClass || '' } : null;
+  const item = {
+    id: Date.now(),
+    title: data.title,
+    subject: data.subject,
+    text: data.description,
+    classFrom: data.classFrom,
+    classTo: data.classTo,
+    type: data.type || 'ask',
+    creator: creator
+  };
+  list.push(item);
+  saveRequests(list);
+}
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({
     '&': '&amp;',
@@ -131,14 +149,19 @@ function renderRequests(containerId, subject) {
     wrap.innerHTML = '<div style="color:#6b7280">Запросов пока нет.</div>';
     return;
   }
-  items.forEach(it => {
-    const a = document.createElement('a');
-    a.href = '#';
-    a.className = 'popular-card';
-    a.innerHTML = '<div class="title">' + escapeHtml(it.title) + '</div>' +
-                  '<div class="meta">' + escapeHtml(it.subject) + ' — ' + escapeHtml(it.text) + '</div>';
-    wrap.appendChild(a);
-  });
+    items.forEach(it => {
+      const link = document.createElement('a');
+      link.href = 'request.html?id=' + encodeURIComponent(it.id);
+      link.className = 'request-link';
+      const typeLabel = (it.type === 'help') ? 'Хочу помочь' : 'Нужна помощь';
+      const typeClass = (it.type === 'help') ? 'request-type--help' : 'request-type--ask';
+      link.innerHTML = '<div class="class-card request-card">' +
+               '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;"><div class="class-title">' + escapeHtml(it.title) + '</div><div class="request-type ' + typeClass + '">' + escapeHtml(typeLabel) + '</div></div>' +
+               '<div class="class-meta">' + escapeHtml(it.subject) + (it.classFrom && it.classTo ? ' (' + escapeHtml(it.classFrom) + '-' + escapeHtml(it.classTo) + ' класс)' : '') + '</div>' +
+                       '<div class="request-preview" style="margin-top:10px;color:#374151;">' + escapeHtml((it.text || it.description || '').slice(0, 180)) + ( (it.text||it.description||'').length > 180 ? '…' : '') + '</div>' +
+                       '</div>';
+      wrap.appendChild(link);
+    });
 }
 
 // --- Auto-init per page ---
@@ -312,28 +335,45 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { return null; }
   }
   const initialSubject = getQueryParam('subject');
-  if (reqForm) {
-    // subject buttons on all-requests (only initialize on this page)
-    const subjectButtons = document.querySelectorAll('.class-grid .class-card');
-    if (subjectButtons && subjectButtons.length) {
-      subjectButtons.forEach(btn => {
-        btn.addEventListener('click', function (e) {
+
+  // subject buttons on all-requests (initialize if present)
+  const subjectButtons = document.querySelectorAll('.class-grid .class-card');
+  if (subjectButtons && subjectButtons.length) {
+    subjectButtons.forEach(btn => {
+      btn.addEventListener('click', function (e) {
+        const href = (btn.getAttribute('href') || '').trim();
+        // If the link is a placeholder (#) we handle filtering here; otherwise allow normal navigation.
+        if (href === '#' || href === '' ) {
           e.preventDefault();
           const s = btn.getAttribute('data-subject') || btn.textContent.trim();
+          // mark selected
+          subjectButtons.forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
           const sel = document.getElementById('reqSubject');
           if (sel) sel.value = s;
           renderRequests('requestsList', s);
           // update URL without reload
           try { history.replaceState(null, '', '?subject=' + encodeURIComponent(s)); } catch (e) {}
-        });
+        }
       });
-    }
-    // if we have subject in query, preselect
-    if (initialSubject) {
-      const sel = document.getElementById('reqSubject'); if (sel) sel.value = initialSubject;
-    }
+    });
+  }
 
-    renderRequests('requestsList', initialSubject);
+  // if we have subject in query, preselect (if input exists)
+  if (initialSubject) {
+    const sel = document.getElementById('reqSubject'); if (sel) sel.value = initialSubject;
+    // highlight matching subject button
+    subjectButtons.forEach(b => {
+      const s = (b.getAttribute('data-subject') || b.textContent || '').trim();
+      if (s === initialSubject) b.classList.add('selected'); else b.classList.remove('selected');
+    });
+  }
+
+  // Always render requests list on this page (requestsList may exist even without form)
+  renderRequests('requestsList', initialSubject);
+
+  // If the old inline request form exists, wire up its submit handler (optional)
+  if (reqForm) {
     reqForm.addEventListener('submit', function (e) {
       e.preventDefault();
       const title = (document.getElementById('reqTitle') || {}).value || '';
@@ -345,6 +385,29 @@ document.addEventListener('DOMContentLoaded', () => {
       saveRequests(list);
       reqForm.reset();
       renderRequests('requestsList', subject);
+    });
+  }
+
+  // Create request page
+  const createForm = document.getElementById('createRequestForm');
+  if (createForm) {
+    createForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const subject = document.getElementById('subject').value;
+      const classFrom = document.getElementById('classFrom').value;
+      const classTo = document.getElementById('classTo').value;
+      const description = document.getElementById('description').value;
+      const type = (document.getElementById('type') || {}).value || 'ask';
+      if (!subject || !classFrom || !classTo || !description.trim()) return;
+      // validate numeric classes and ordering
+      const fromN = parseInt(String(classFrom), 10);
+      const toN = parseInt(String(classTo), 10);
+      if (isNaN(fromN) || isNaN(toN)) { alert('Пожалуйста, укажите корректные номера классов'); return; }
+      if (fromN > toN) { alert('Класс "от" не может быть больше класса "до"'); return; }
+      const title = `${subject} (${classFrom}-${classTo} класс)`;
+      addRequest({ title, subject, classFrom, classTo, description, type });
+      alert('Запрос создан!');
+      window.location.href = 'index.html';
     });
   }
 });
