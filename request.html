@@ -47,11 +47,10 @@
   function getQueryParam(name) {
     try { return new URLSearchParams(window.location.search).get(name); } catch (e) { return null; }
   }
-  document.addEventListener('DOMContentLoaded', function () {
+  document.addEventListener('DOMContentLoaded', async function () {
     const id = getQueryParam('id');
     const root = document.getElementById('requestRoot');
-    const list = (window.getRequests && getRequests()) || [];
-    const item = list.find(it => String(it.id) === String(id));
+    const item = (window.getRequestById) ? await getRequestById(id) : null;
     if (!item) {
       root.innerHTML = '<div style="color:#6b7280">Запрос не найден.</div>';
       return;
@@ -69,16 +68,35 @@
         <aside class="request-side card">
           <div class="provider">
             <div class="provider-avatar">〤</div>
-            <div class="provider-name">${ escapeHtml(item.creator && item.creator.name ? item.creator.name : 'Профиль автора') }</div>
-            <div class="provider-meta">ФИО: ${ escapeHtml(item.creator && item.creator.name ? item.creator.name : 'Не указано') }</div>
-            <div class="provider-meta">Средний балл: ${ escapeHtml((item.creator && item.creator.avgGrade) ? item.creator.avgGrade : '—') }</div>
-            <div class="provider-meta">Класс: ${ escapeHtml((item.creator && item.creator.schoolClass) ? item.creator.schoolClass : '—') }</div>
+            <div class="provider-name">${ escapeHtml(item.creatorName || 'Профиль автора') }</div>
+            <div class="provider-meta">ФИО: ${ escapeHtml(item.creatorName || 'Не указано') }</div>
+            <div class="provider-meta">Средний балл: —</div>
+            <div class="provider-meta">Класс: —</div>
+            <div style="margin-top:12px">
+              <button id="acceptBtn" class="btn-create">Принять</button>
+            </div>
+            <div id="acceptInfo" style="margin-top:10px;color:#16a34a;font-weight:700;display:none">Принято</div>
           </div>
         </aside>
       </div>
     `;
     root.innerHTML = '';
     root.appendChild(el);
+    // wire accept button
+    (function () {
+      const btn = document.getElementById('acceptBtn');
+      const info = document.getElementById('acceptInfo');
+      if (!btn) return;
+      if (item.accepted) { btn.disabled = true; btn.textContent = 'Принято'; info.style.display = 'block'; }
+      btn.addEventListener('click', async function () {
+        const user = (window.checkAuth && checkAuth()) || null;
+        if (!user) { alert('Пожалуйста, войдите, чтобы принять запрос'); window.location.href = 'login.html'; return; }
+        const res = (window.acceptRequestApi) ? await acceptRequestApi(item.id, user.id) : { success: false };
+        if (res && res.success) {
+          btn.disabled = true; btn.textContent = 'Принято'; if (info) { info.style.display = 'block'; info.textContent = 'Принято вами'; }
+        } else { alert('Не удалось принять запрос'); }
+      });
+    })();
   });
 </script>
 </body>
