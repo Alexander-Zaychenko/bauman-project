@@ -45,6 +45,40 @@ CREATE TABLE IF NOT EXISTS requests (
 );
 `);
 
+// Chats table: one chat per accepted request (creator + accepter)
+db.exec(`
+CREATE TABLE IF NOT EXISTS chats (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  requestId INTEGER,
+  creatorId INTEGER,
+  accepterId INTEGER,
+  status TEXT DEFAULT 'active', -- active, cancelled, completed
+  createdAt INTEGER
+);
+`);
+
+// Ensure chats table has updatedAt column (added later) to avoid SQL errors when updating
+try {
+  const info = db.prepare("PRAGMA table_info('chats')").all();
+  const hasUpdated = info && info.some(c => c.name === 'updatedAt');
+  if (!hasUpdated) {
+    db.prepare('ALTER TABLE chats ADD COLUMN updatedAt INTEGER').run();
+  }
+} catch (e) {
+  console.error('Error ensuring chats.updatedAt column', e);
+}
+
+// Chat messages
+db.exec(`
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chatId INTEGER,
+  senderId INTEGER,
+  text TEXT,
+  createdAt INTEGER
+);
+`);
+
 // Seed sample users and requests if empty (helpful for development)
 try {
   const uCount = db.prepare('SELECT COUNT(1) as c FROM users').get();
@@ -110,9 +144,10 @@ app.get('/api/users/:id', (req, res) => {
 });
 
 // Requests: list, create, get, accept
+// List only non-accepted requests by default
 app.get('/api/requests', (req, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM requests ORDER BY id DESC').all();
+    const rows = db.prepare('SELECT * FROM requests WHERE accepted = 0 ORDER BY id DESC').all();
     res.json({ requests: rows });
   } catch (e) {
     console.error(e);
@@ -147,14 +182,98 @@ app.post('/api/requests/:id/accept', (req, res) => {
   const body = req.body || {};
   if (!id) return res.status(400).json({ error: 'invalid id' });
   try {
+    // ensure request exists and isn't already accepted
+    const reqRow = db.prepare('SELECT * FROM requests WHERE id = ?').get(id);
+    if (!reqRow) return res.status(404).json({ error: 'not_found' });
+    if (reqRow.accepted) return res.status(409).json({ error: 'already_accepted' });
+    // prevent accepting your own request
+    if (body.userId && reqRow.creatorId && Number(body.userId) === Number(reqRow.creatorId)) {
+      return res.status(400).json({ error: 'cannot_accept_own_request' });
+    }
     const now = Date.now();
     db.prepare('UPDATE requests SET accepted = 1, acceptedBy = ?, acceptedAt = ? WHERE id = ?').run(body.userId || null, now, id);
+    // create chat for creator and accepter
+    const info = db.prepare('INSERT INTO chats (requestId, creatorId, accepterId, status, createdAt) VALUES (?,?,?,?,?)')
+      .run(id, reqRow.creatorId || null, body.userId || null, 'active', now);
+    const chat = db.prepare('SELECT * FROM chats WHERE id = ?').get(info.lastInsertRowid);
     const updated = db.prepare('SELECT * FROM requests WHERE id = ?').get(id);
-    res.json({ success: true, request: updated });
+    res.json({ success: true, request: updated, chat });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'internal' });
   }
+});
+
+// Chats endpoints
+// list chats for a user: use query ?userId=
+app.get('/api/chats', (req, res) => {
+  const userId = parseInt(req.query.userId, 10) || null;
+  try {
+    if (!userId) return res.status(400).json({ error: 'userId required' });
+    const rows = db.prepare('SELECT * FROM chats WHERE (creatorId = ? OR accepterId = ?) ORDER BY createdAt DESC').all(userId, userId);
+    res.json({ chats: rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+app.get('/api/chats/:id', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id) return res.status(400).json({ error: 'invalid id' });
+  try {
+    const chat = db.prepare('SELECT * FROM chats WHERE id = ?').get(id);
+    if (!chat) return res.status(404).json({ error: 'not_found' });
+    const msgs = db.prepare('SELECT * FROM chat_messages WHERE chatId = ? ORDER BY id ASC').all(id);
+    // include request info
+    const request = db.prepare('SELECT * FROM requests WHERE id = ?').get(chat.requestId);
+    res.json({ chat, messages: msgs, request });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'internal' }); }
+});
+
+app.post('/api/chats/:id/messages', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const body = req.body || {};
+  if (!id) return res.status(400).json({ error: 'invalid id' });
+  if (!body.senderId || !body.text) return res.status(400).json({ error: 'senderId and text required' });
+  try {
+    const now = Date.now();
+    const info = db.prepare('INSERT INTO chat_messages (chatId, senderId, text, createdAt) VALUES (?,?,?,?)').run(id, body.senderId, body.text, now);
+    const msg = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(info.lastInsertRowid);
+    res.json({ success: true, message: msg });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'internal' }); }
+});
+
+// accepter cancels: revert request to unaccepted and mark chat cancelled
+app.post('/api/chats/:id/cancel', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const body = req.body || {};
+  if (!id) return res.status(400).json({ error: 'invalid id' });
+  try {
+    const chat = db.prepare('SELECT * FROM chats WHERE id = ?').get(id);
+    if (!chat) return res.status(404).json({ error: 'not_found' });
+    if (chat.status !== 'active') return res.status(409).json({ error: 'invalid_status' });
+    // update chat
+    db.prepare('UPDATE chats SET status = ?, updatedAt = ? WHERE id = ?').run('cancelled', Date.now(), id);
+    // revert request
+    db.prepare('UPDATE requests SET accepted = 0, acceptedBy = NULL, acceptedAt = NULL WHERE id = ?').run(chat.requestId);
+    const updated = db.prepare('SELECT * FROM chats WHERE id = ?').get(id);
+    res.json({ success: true, chat: updated });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'internal' }); }
+});
+
+// creator confirms completion: mark chat completed
+app.post('/api/chats/:id/confirm', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id) return res.status(400).json({ error: 'invalid id' });
+  try {
+    const chat = db.prepare('SELECT * FROM chats WHERE id = ?').get(id);
+    if (!chat) return res.status(404).json({ error: 'not_found' });
+    if (chat.status !== 'active') return res.status(409).json({ error: 'invalid_status' });
+    db.prepare('UPDATE chats SET status = ?, updatedAt = ? WHERE id = ?').run('completed', Date.now(), id);
+    const updated = db.prepare('SELECT * FROM chats WHERE id = ?').get(id);
+    res.json({ success: true, chat: updated });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'internal' }); }
 });
 
 // Update user

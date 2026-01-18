@@ -69,7 +69,7 @@
           <div class="provider">
             <div class="provider-avatar">〤</div>
             <div class="provider-name">${ escapeHtml(item.creatorName || 'Профиль автора') }</div>
-            <div class="provider-meta">ФИО: ${ escapeHtml(item.creatorName || 'Не указано') }</div>
+              <div class="provider-meta">ФИО: ${ escapeHtml(item.creatorName || 'Не указано') }</div>
             <div class="provider-meta">Средний балл: —</div>
             <div class="provider-meta">Класс: —</div>
             <div style="margin-top:12px">
@@ -87,13 +87,19 @@
       const btn = document.getElementById('acceptBtn');
       const info = document.getElementById('acceptInfo');
       if (!btn) return;
+      const current = (window.checkAuth && checkAuth()) || null;
+      // disable if already accepted
       if (item.accepted) { btn.disabled = true; btn.textContent = 'Принято'; info.style.display = 'block'; }
+      // prevent accepting your own request on client side as well
+      if (current && item.creatorId && Number(current.id) === Number(item.creatorId)) { btn.disabled = true; btn.textContent = 'Ваш запрос'; }
       btn.addEventListener('click', async function () {
         const user = (window.checkAuth && checkAuth()) || null;
         if (!user) { alert('Пожалуйста, войдите, чтобы принять запрос'); window.location.href = 'login.html'; return; }
         const res = (window.acceptRequestApi) ? await acceptRequestApi(item.id, user.id) : { success: false };
         if (res && res.success) {
           btn.disabled = true; btn.textContent = 'Принято'; if (info) { info.style.display = 'block'; info.textContent = 'Принято вами'; }
+          // if server returned a chat, open it
+          try { if (res.chat && res.chat.id) { window.location.href = 'chats.html?chatId=' + encodeURIComponent(res.chat.id); } } catch (e) {}
         } else { alert('Не удалось принять запрос'); }
       });
     })();

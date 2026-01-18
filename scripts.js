@@ -24,6 +24,27 @@ async function getRequestById(id) { try { const res = await fetch('/api/requests
 async function createRequest(data) { try { const user = checkAuth(); const payload = Object.assign({}, data, { creator: user ? { id: user.id, name: user.name } : null }); const res = await fetch('/api/requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); return await res.json(); } catch (e) { console.error(e); return { success: false }; } }
 async function acceptRequestApi(id, userId) { try { const res = await fetch('/api/requests/' + encodeURIComponent(id) + '/accept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) }); return await res.json(); } catch (e) { console.error(e); return { success: false }; } }
 
+// Chats API
+async function getChats(userId) {
+  try { const res = await fetch('/api/chats?userId=' + encodeURIComponent(userId)); const j = await res.json(); return j.chats || []; } catch (e) { console.error(e); return []; }
+}
+
+async function getChatById(id) {
+  try { const res = await fetch('/api/chats/' + encodeURIComponent(id)); const j = await res.json(); return j || null; } catch (e) { console.error(e); return null; }
+}
+
+async function postChatMessage(chatId, senderId, text) {
+  try { const res = await fetch('/api/chats/' + encodeURIComponent(chatId) + '/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senderId, text }) }); return await res.json(); } catch (e) { console.error(e); return { success: false }; }
+}
+
+async function cancelChat(chatId) {
+  try { const res = await fetch('/api/chats/' + encodeURIComponent(chatId) + '/cancel', { method: 'POST', headers: {'Content-Type':'application/json'} }); return await res.json(); } catch (e) { console.error(e); return { success: false }; }
+}
+
+async function confirmChat(chatId) {
+  try { const res = await fetch('/api/chats/' + encodeURIComponent(chatId) + '/confirm', { method: 'POST', headers: {'Content-Type':'application/json'} }); return await res.json(); } catch (e) { console.error(e); return { success: false }; }
+}
+
 // UI helpers
 function renderAuthWidget() {
   try {

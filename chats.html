@@ -15,13 +15,121 @@
 </header>
 <main class="site-main">
   <div class="container">
-    <section class="card">
-      <h1>Чаты</h1>
-      <p>Здесь будет список чат-диалогов (пока заглушка).</p>
+    <section class="card chat-container">
+      <div class="chat-grid">
+        <aside class="chat-list">
+          <div class="chat-list-header">Чаты</div>
+          <div id="chatListRoot" class="chat-list-items">Загрузка...</div>
+        </aside>
+        <div class="chat-panel">
+          <div id="chatPanelRoot" class="chat-panel-root">
+            <div class="chat-empty">Выберите чат слева или примите запрос, чтобы начать общение.</div>
+          </div>
+        </div>
+      </div>
     </section>
   </div>
 </main>
 <footer class="site-footer"><div class="container footer-inner"><div class="footer-left"><div class="logo footer-logo"><a href="index.html">SkillUp<span>.ru</span></a></div><p class="footer-copy">© 2025 SkillUp.</p></div></div></footer>
 <script src="scripts.js"></script>
+<script>
+  function getQueryParam(name) { try { return new URLSearchParams(window.location.search).get(name); } catch (e) { return null; } }
+  document.addEventListener('DOMContentLoaded', async function () {
+    renderAuthWidget();
+    const user = checkAuth(); if (!user) { window.location.href = 'login.html'; return; }
+    const userId = user.id;
+    const listRoot = document.getElementById('chatListRoot');
+    const panelRoot = document.getElementById('chatPanelRoot');
+
+    async function openChat(chatId) {
+      panelRoot.innerHTML = 'Загрузка...';
+      const j = await getChatById(chatId);
+      if (!j || !j.chat) { panelRoot.innerHTML = '<div class="chat-empty">Чат не найден.</div>'; return; }
+      const chat = j.chat; const messages = j.messages || []; const request = j.request || {};
+      const otherId = (userId === chat.creatorId) ? chat.accepterId : chat.creatorId;
+      let otherName = 'Собеседник';
+      if (otherId) {
+        try { const ru = await fetch('/api/users/' + encodeURIComponent(otherId)); if (ru.ok) { const uj = await ru.json(); otherName = (uj.user && uj.user.name) || otherName; } } catch (e) {}
+      }
+      const headerHtml = `<div class="chat-header"><div class="chat-opponent"><div class="avatar">〤</div><div class="meta"><div class="name">${escapeHtml(otherName)}</div><div class="sub">${escapeHtml(request.title || request.subject || '')}</div></div></div><div class="chat-actions" id="chatActions"></div></div>`;
+      const msgsHtml = messages.map(m => {
+        const fromMe = (m.senderId === userId);
+        return `<div class="chat-msg ${fromMe? 'me':''}"><div class="msg-text">${escapeHtml(m.text)}</div><div class="msg-meta">${new Date(m.createdAt||0).toLocaleString()}</div></div>`;
+      }).join('');
+      panelRoot.innerHTML = headerHtml + `<div class="chat-messages" id="chatMessages">${msgsHtml}</div><div class="chat-composer"><textarea id="chatInput" placeholder="Напишите сообщение..."></textarea><button id="chatSend" class="btn-create">Отправить</button></div>`;
+
+      const actions = document.getElementById('chatActions');
+      if (actions) {
+        actions.innerHTML = '';
+        // show actions only when chat is active
+        if (chat.status === 'active') {
+          if (userId === chat.accepterId) {
+            const btn = document.createElement('button'); btn.className = 'btn-secondary'; btn.textContent = 'Отказаться'; btn.addEventListener('click', async () => {
+              if (!confirm('Вы действительно хотите отказаться от выполнения?')) return;
+              const r = await cancelChat(chat.id);
+              if (r && r.success) {
+                alert('Вы отказались — запрос снова доступен.');
+                await loadChats();
+                panelRoot.innerHTML = '<div class="chat-empty">Выберите чат слева.</div>';
+              } else if (r && r.error) {
+                alert('Не удалось отказаться: ' + (r.error || 'ошибка'));
+                await loadChats();
+                openChat(chat.id);
+              } else alert('Не удалось отказаться');
+            }); actions.appendChild(btn);
+          }
+          if (userId === chat.creatorId) {
+            const btn = document.createElement('button'); btn.className = 'btn-create'; btn.textContent = 'Подтвердить выполнение'; btn.addEventListener('click', async () => {
+              if (!confirm('Подтвердить выполнение задания?')) return;
+              const r = await confirmChat(chat.id);
+              if (r && r.success) { alert('Выполнение подтверждено.'); await loadChats(); openChat(chat.id); }
+              else if (r && r.error) { alert('Не удалось подтвердить: ' + (r.error || 'ошибка')); await loadChats(); openChat(chat.id); }
+              else alert('Не удалось подтвердить');
+            }); actions.appendChild(btn);
+          }
+        }
+      }
+
+      // send handler
+      const sendBtn = document.getElementById('chatSend');
+      const input = document.getElementById('chatInput');
+      const messagesEl = document.getElementById('chatMessages');
+      sendBtn.addEventListener('click', async () => {
+        const text = (input.value || '').trim(); if (!text) return;
+        const r = await postChatMessage(chat.id, userId, text);
+        if (r && r.success && r.message) {
+          const mm = r.message; const node = document.createElement('div'); node.className = 'chat-msg me'; node.innerHTML = `<div class="msg-text">${escapeHtml(mm.text)}</div><div class="msg-meta">${new Date(mm.createdAt||0).toLocaleString()}</div>`;
+          messagesEl.appendChild(node); input.value = ''; messagesEl.scrollTop = messagesEl.scrollHeight;
+        } else alert('Не удалось отправить сообщение');
+      });
+    }
+
+    async function loadChats() {
+      listRoot.innerHTML = 'Загрузка...';
+      const chats = await getChats(userId);
+      if (!chats || chats.length === 0) { listRoot.innerHTML = '<div style="color:#6b7280">Чатов пока нет.</div>'; return; }
+      listRoot.innerHTML = '';
+      for (const c of chats) {
+        // fetch minimal info
+        const info = await getChatById(c.id);
+        const request = (info && info.request) || {};
+        const otherId = (userId === c.creatorId) ? c.accepterId : c.creatorId;
+        let otherName = otherId ? String(otherId) : 'Собеседник';
+        if (otherId) { try { const ru = await fetch('/api/users/' + encodeURIComponent(otherId)); if (ru.ok) { const uj = await ru.json(); otherName = (uj.user && uj.user.name) || otherName; } } catch (e) {} }
+        const el = document.createElement('div'); el.className = 'chat-list-item'; el.innerHTML = `<div class="chat-item-title">${escapeHtml(request.title || request.subject || 'Чат')}</div><div class="chat-item-sub">${escapeHtml(otherName)} • ${escapeHtml(c.status||'')}</div>`;
+        el.addEventListener('click', () => { // open
+          // mark selected
+          document.querySelectorAll('.chat-list-item').forEach(n=>n.classList.remove('active'));
+          el.classList.add('active');
+          openChat(c.id);
+        });
+        listRoot.appendChild(el);
+      }
+      const openId = getQueryParam('chatId'); if (openId) { openChat(openId); }
+    }
+
+    await loadChats();
+  });
+</script>
 </body>
 </html>
