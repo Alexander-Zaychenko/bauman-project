@@ -9,6 +9,60 @@ function logout() { localStorage.removeItem('currentUser'); }
 
 function escapeHtml(s) { return String(s || '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
+// Profile customization helpers (stored in localStorage per user id)
+function getProfileCustomization(userId) {
+  try { const raw = localStorage.getItem('profileCustom_' + (userId || '')); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; }
+}
+function saveProfileCustomization(userId, obj) {
+  try { localStorage.setItem('profileCustom_' + (userId || ''), JSON.stringify(obj || {})); return true; } catch (e) { return false; }
+}
+
+// Small notification banner (replaces alert())
+function showMessage(text, type = 'success', timeout = 3500) {
+  try {
+    let el = document.getElementById('siteMessageBanner');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'siteMessageBanner';
+      el.style.position = 'fixed';
+      el.style.top = '16px';
+      el.style.left = '50%';
+      el.style.transform = 'translateX(-50%)';
+      el.style.zIndex = '1200';
+      el.style.minWidth = '240px';
+      el.style.maxWidth = '80%';
+      el.style.padding = '12px 16px';
+      el.style.borderRadius = '10px';
+      el.style.boxShadow = '0 6px 24px rgba(15,23,42,0.12)';
+      el.style.fontWeight = '700';
+      el.style.textAlign = 'center';
+      el.style.display = 'none';
+      document.body.appendChild(el);
+    }
+    el.textContent = text;
+    if (type === 'error') {
+      el.style.background = '#fff1f0';
+      el.style.color = '#9f1239';
+      el.style.border = '1px solid #fecaca';
+    } else {
+      el.style.background = '#ecfdf5';
+      el.style.color = '#065f46';
+      el.style.border = '1px solid #bbf7d0';
+    }
+    el.style.display = 'block';
+    if (timeout > 0) setTimeout(() => { try { el.style.display = 'none'; } catch (e) {} }, timeout);
+  } catch (e) { console.error('showMessage error', e); }
+}
+
+// Refresh current user data from server and re-render auth widget
+async function refreshCurrentUser() {
+  try {
+    const current = checkAuth(); if (!current || !current.id) return;
+    const res = await fetch('/api/users/' + encodeURIComponent(current.id));
+    if (!res.ok) return;
+    const j = await res.json(); if (j && j.user) { localStorage.setItem('currentUser', JSON.stringify(j.user)); renderAuthWidget(); }
+  } catch (e) { console.error('refreshCurrentUser error', e); }
+}
 // Auth API
 async function registerUser(data) {
   try { const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); const j = await res.json(); if (res.ok && j.user) { localStorage.setItem('currentUser', JSON.stringify(j.user)); return { success: true, message: 'Регистрация прошла успешно!', user: j.user }; } return { success: false, message: j.error || (j.message || 'Ошибка регистрации') }; } catch (e) { return { success: false, message: 'Ошибка сети' }; }
@@ -38,11 +92,21 @@ async function postChatMessage(chatId, senderId, text) {
 }
 
 async function cancelChat(chatId) {
-  try { const res = await fetch('/api/chats/' + encodeURIComponent(chatId) + '/cancel', { method: 'POST', headers: {'Content-Type':'application/json'} }); return await res.json(); } catch (e) { console.error(e); return { success: false }; }
+  try {
+    const res = await fetch('/api/chats/' + encodeURIComponent(chatId) + '/cancel', { method: 'POST', headers: {'Content-Type':'application/json'} });
+    const j = await res.json();
+    if (j && j.success) await refreshCurrentUser();
+    return j;
+  } catch (e) { console.error(e); return { success: false }; }
 }
 
 async function confirmChat(chatId) {
-  try { const res = await fetch('/api/chats/' + encodeURIComponent(chatId) + '/confirm', { method: 'POST', headers: {'Content-Type':'application/json'} }); return await res.json(); } catch (e) { console.error(e); return { success: false }; }
+  try {
+    const res = await fetch('/api/chats/' + encodeURIComponent(chatId) + '/confirm', { method: 'POST', headers: {'Content-Type':'application/json'} });
+    const j = await res.json();
+    if (j && j.success) await refreshCurrentUser();
+    return j;
+  } catch (e) { console.error(e); return { success: false }; }
 }
 
 // UI helpers
@@ -53,7 +117,11 @@ function renderAuthWidget() {
     nodes.forEach(el => {
       if (user) {
         const name = escapeHtml(user.name || 'Пользователь');
-        el.innerHTML = '<a href="chats.html" class="chats-link" style="margin-right:8px;background:#eef6ff;color:#2563eb;border:1px solid #cfe6ff;padding:6px 12px;border-radius:999px;text-decoration:none">Чаты</a>' +
+        const sp = Number(user.skillpoints || 0);
+        const spHtml = '<div class="sp-badge" style="display:inline-block;margin-right:12px;padding:8px 12px;border:1px solid #e6e9ef;border-radius:8px;background:#fff;color:#0f172a;font-weight:700;min-width:56px;text-align:center;">' +
+                 '<div style="font-size:16px">' + String(sp) + '</div>' +
+                 '</div>';
+        el.innerHTML = spHtml + '<a href="chats.html" class="chats-link" style="margin-right:8px;background:#eef6ff;color:#2563eb;border:1px solid #cfe6ff;padding:6px 12px;border-radius:999px;text-decoration:none">Чаты</a>' +
                        '<a href="profile.html">Привет, ' + name + '</a>';
       } else {
         el.innerHTML = '<a href="login.html">Войти</a> <a href="register.html">Регистрация</a>';
@@ -94,7 +162,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   const profileName = document.getElementById('userName'); if (profileName) {
     const user = checkAuth(); if (!user) { window.location.href = 'login.html'; return; }
     document.getElementById('userName').textContent = user.name || 'Пользователь'; const emailEl = document.getElementById('userEmail'); if (emailEl) emailEl.textContent = user.email || '';
-    const initials = (user.name || 'SU').split(' ').map(s => s[0]).slice(0, 2).join(''); const avatar = document.getElementById('avatar'); if (avatar) avatar.textContent = initials.toUpperCase();
+    const spEl = document.getElementById('userSkillpointsValue'); if (spEl) spEl.textContent = String(Number(user.skillpoints||0));
+    const initials = (user.name || 'SU').split(' ').map(s => s[0]).slice(0, 2).join('');
+    const avatar = document.getElementById('avatar');
+    if (avatar) {
+      avatar.textContent = initials.toUpperCase();
+      try {
+        const custom = getProfileCustomization(user.id || '');
+        if (custom) {
+          if (custom.avatarBg) avatar.style.background = custom.avatarBg;
+          if (custom.cardBg) {
+            const cardEl = document.querySelector('.profile-card');
+            if (cardEl) cardEl.style.background = custom.cardBg;
+          }
+        }
+      } catch (e) {}
+    }
     const logoutBtn = document.getElementById('logoutBtn'); if (logoutBtn) logoutBtn.addEventListener('click', (e) => { e.preventDefault(); logout(); window.location.href = 'index.html'; });
     const bioEl = document.getElementById('userBio'); if (bioEl) bioEl.textContent = user.bio || 'Здесь вы можете добавить информацию о себе.';
     const ageEl = document.getElementById('userAge'); if (ageEl) ageEl.textContent = user.age || '—'; const classEl = document.getElementById('userClass'); if (classEl) classEl.textContent = user.schoolClass || '—';
@@ -108,11 +191,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Register
   const registerForm = document.getElementById('registerForm'); if (registerForm) { const current = checkAuth(); if (current) { window.location.href = 'profile.html'; }
-    registerForm.addEventListener('submit', async function (e) { e.preventDefault(); const firstName = (document.getElementById('registerFirstName') || {}).value || ''; const lastName = (document.getElementById('registerLastName') || {}).value || ''; const email = (document.getElementById('registerEmail') || {}).value || ''; const pass = (document.getElementById('registerPassword') || {}).value || ''; const age = (document.getElementById('registerAge') || {}).value || ''; const city = (document.getElementById('registerCity') || {}).value || ''; const schoolClass = (document.getElementById('registerClass') || {}).value || ''; let avgGrade = (document.getElementById('registerAvg') || {}).value || ''; const gender = (document.getElementById('registerGender') || {}).value || ''; const bio = (document.getElementById('registerBio') || {}).value || ''; if (avgGrade) { const n = parseFloat(String(avgGrade).replace(',', '.')); if (isNaN(n) || n < 2 || n > 5) { const msg = document.getElementById('registerMessage'); if (msg) { msg.textContent = 'Ошибка: средний балл должен быть числом от 2 до 5'; msg.className = 'message error'; msg.style.display = 'block'; } else alert('Средний балл должен быть числом от 2 до 5'); return; } avgGrade = String(n); } if (!['male', 'female'].includes(gender)) { const msg = document.getElementById('registerMessage'); if (msg) { msg.textContent = 'Ошибка: выберите пол (Мужской или Женский)'; msg.className = 'message error'; msg.style.display = 'block'; } return; } const res = await registerUser({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), password: pass, age: age.trim(), city: city.trim(), schoolClass: schoolClass.trim(), avgGrade: avgGrade.trim(), gender: gender.trim(), bio: bio.trim() }); const msg = document.getElementById('registerMessage'); if (msg) { msg.textContent = res.message; msg.className = 'message ' + (res.success ? 'success' : 'error'); msg.style.display = 'block'; } if (res.success) setTimeout(() => { window.location.href = 'profile.html'; }, 700); }); }
+    registerForm.addEventListener('submit', async function (e) { e.preventDefault(); const firstName = (document.getElementById('registerFirstName') || {}).value || ''; const lastName = (document.getElementById('registerLastName') || {}).value || ''; const email = (document.getElementById('registerEmail') || {}).value || ''; const pass = (document.getElementById('registerPassword') || {}).value || ''; const age = (document.getElementById('registerAge') || {}).value || ''; const city = (document.getElementById('registerCity') || {}).value || ''; const schoolClass = (document.getElementById('registerClass') || {}).value || ''; let avgGrade = (document.getElementById('registerAvg') || {}).value || ''; const gender = (document.getElementById('registerGender') || {}).value || ''; const bio = (document.getElementById('registerBio') || {}).value || ''; if (avgGrade) { const n = parseFloat(String(avgGrade).replace(',', '.')); if (isNaN(n) || n < 2 || n > 5) { const msg = document.getElementById('registerMessage'); if (msg) { msg.textContent = 'Ошибка: средний балл должен быть числом от 2 до 5'; msg.className = 'message error'; msg.style.display = 'block'; } else showMessage('Средний балл должен быть числом от 2 до 5', 'error'); return; } avgGrade = String(n); } if (!['male', 'female'].includes(gender)) { const msg = document.getElementById('registerMessage'); if (msg) { msg.textContent = 'Ошибка: выберите пол (Мужской или Женский)'; msg.className = 'message error'; msg.style.display = 'block'; } return; } const res = await registerUser({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), password: pass, age: age.trim(), city: city.trim(), schoolClass: schoolClass.trim(), avgGrade: avgGrade.trim(), gender: gender.trim(), bio: bio.trim() }); const msg = document.getElementById('registerMessage'); if (msg) { msg.textContent = res.message; msg.className = 'message ' + (res.success ? 'success' : 'error'); msg.style.display = 'block'; } if (res.success) setTimeout(() => { window.location.href = 'profile.html'; }, 700); }); }
 
   // Edit profile
   const editForm = document.getElementById('editProfileForm'); if (editForm) { const user = checkAuth(); if (!user) { window.location.href = 'login.html'; return; } (document.getElementById('editFirstName') || {}).value = user.firstName || ''; (document.getElementById('editLastName') || {}).value = user.lastName || ''; (document.getElementById('editEmail') || {}).value = user.email || ''; (document.getElementById('editAge') || {}).value = user.age || ''; (document.getElementById('editCity') || {}).value = user.city || ''; (document.getElementById('editClass') || {}).value = user.schoolClass || ''; (document.getElementById('editAvg') || {}).value = user.avgGrade || ''; (document.getElementById('editGender') || {}).value = user.gender || ''; (document.getElementById('editBio') || {}).value = user.bio || '';
-    editForm.addEventListener('submit', async function (e) { e.preventDefault(); const firstName = (document.getElementById('editFirstName') || {}).value || ''; const lastName = (document.getElementById('editLastName') || {}).value || ''; const email = (document.getElementById('editEmail') || {}).value || ''; const age = (document.getElementById('editAge') || {}).value || ''; const city = (document.getElementById('editCity') || {}).value || ''; const schoolClass = (document.getElementById('editClass') || {}).value || ''; let avgGrade = (document.getElementById('editAvg') || {}).value || ''; const gender = (document.getElementById('editGender') || {}).value || ''; const bio = (document.getElementById('editBio') || {}).value || ''; if (avgGrade) { const n = parseFloat(String(avgGrade).replace(',', '.')); if (isNaN(n) || n < 2 || n > 5) { alert('Средний балл должен быть числом от 2 до 5'); return; } avgGrade = String(n); } if (!['male', 'female'].includes(gender)) { alert('Выберите пол: Мужской или Женский'); return; } try { const res = await fetch('/api/users/' + encodeURIComponent(user.id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), schoolClass: schoolClass.trim(), age: age.trim(), city: city.trim(), avgGrade: avgGrade.trim(), gender: gender.trim(), bio: bio.trim(), profileConfigured: Boolean(age.trim() && city.trim() && avgGrade.trim() && gender.trim() && bio.trim()) }) }); const j = await res.json(); if (j.success && j.user) { localStorage.setItem('currentUser', JSON.stringify(j.user)); window.location.href = 'profile.html'; } } catch (e) { alert('Ошибка обновления профиля'); } }); }
+    editForm.addEventListener('submit', async function (e) { e.preventDefault(); const firstName = (document.getElementById('editFirstName') || {}).value || ''; const lastName = (document.getElementById('editLastName') || {}).value || ''; const email = (document.getElementById('editEmail') || {}).value || ''; const age = (document.getElementById('editAge') || {}).value || ''; const city = (document.getElementById('editCity') || {}).value || ''; const schoolClass = (document.getElementById('editClass') || {}).value || ''; let avgGrade = (document.getElementById('editAvg') || {}).value || ''; const gender = (document.getElementById('editGender') || {}).value || ''; const bio = (document.getElementById('editBio') || {}).value || ''; if (avgGrade) { const n = parseFloat(String(avgGrade).replace(',', '.')); if (isNaN(n) || n < 2 || n > 5) { showMessage('Средний балл должен быть числом от 2 до 5', 'error'); return; } avgGrade = String(n); } if (!['male', 'female'].includes(gender)) { showMessage('Выберите пол: Мужской или Женский', 'error'); return; } try { const res = await fetch('/api/users/' + encodeURIComponent(user.id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), schoolClass: schoolClass.trim(), age: age.trim(), city: city.trim(), avgGrade: avgGrade.trim(), gender: gender.trim(), bio: bio.trim(), profileConfigured: Boolean(age.trim() && city.trim() && avgGrade.trim() && gender.trim() && bio.trim()) }) }); const j = await res.json(); if (j.success && j.user) { localStorage.setItem('currentUser', JSON.stringify(j.user)); window.location.href = 'profile.html'; } } catch (e) { showMessage('Ошибка обновления профиля', 'error'); } }); }
 
   // All-requests
   const reqForm = document.getElementById('requestForm'); function getQueryParam(name) { try { const params = new URLSearchParams(window.location.search); return params.get(name); } catch (e) { return null; } } const initialSubject = getQueryParam('subject'); const subjectButtons = document.querySelectorAll('.class-grid .class-card'); if (subjectButtons && subjectButtons.length) { subjectButtons.forEach(btn => { btn.addEventListener('click', function (e) { const href = (btn.getAttribute('href') || '').trim(); if (href === '#' || href === '' ) { e.preventDefault(); const s = btn.getAttribute('data-subject') || btn.textContent.trim(); subjectButtons.forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); const sel = document.getElementById('reqSubject'); if (sel) sel.value = s; renderRequests('requestsList', s); try { history.replaceState(null, '', '?subject=' + encodeURIComponent(s)); } catch (e) {} } }); }); }
@@ -123,5 +206,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (reqForm) { reqForm.addEventListener('submit', async function (e) { e.preventDefault(); const title = (document.getElementById('reqTitle') || {}).value || ''; const subject = (document.getElementById('reqSubject') || {}).value || ''; const text = (document.getElementById('reqText') || {}).value || ''; if (!title.trim()) return; await createRequest({ id: Date.now(), title: title.trim(), subject, text: text.trim() }); reqForm.reset(); await renderRequests('requestsList', subject); await updateSubjectCounts(); }); }
 
-  const createForm = document.getElementById('createRequestForm'); if (createForm) { createForm.addEventListener('submit', async function (e) { e.preventDefault(); const subject = document.getElementById('subject').value; const classFrom = document.getElementById('classFrom').value; const classTo = document.getElementById('classTo').value; const description = document.getElementById('description').value; const type = (document.getElementById('type') || {}).value || 'ask'; if (!subject || !classFrom || !classTo || !description.trim()) return; const fromN = parseInt(String(classFrom), 10); const toN = parseInt(String(classTo), 10); if (isNaN(fromN) || isNaN(toN)) { alert('Пожалуйста, укажите корректные номера классов'); return; } if (fromN > toN) { alert('Класс "от" не может быть больше класса "до"'); return; } const title = `${subject} (${classFrom}-${classTo} класс)`; await createRequest({ title, subject, classFrom, classTo, description, type }); alert('Запрос создан!'); window.location.href = 'index.html'; }); }
+  const createForm = document.getElementById('createRequestForm');
+  if (createForm) {
+    createForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const subject = document.getElementById('subject').value;
+      const classFrom = document.getElementById('classFrom').value;
+      const classTo = document.getElementById('classTo').value;
+      const description = document.getElementById('description').value;
+      const type = (document.getElementById('type') || {}).value || 'ask';
+      const sp = parseInt(((document.getElementById('skillpoints')||{}).value), 10) || 0;
+      if (!subject || !classFrom || !classTo || !description.trim()) return;
+      const fromN = parseInt(String(classFrom), 10);
+      const toN = parseInt(String(classTo), 10);
+      if (isNaN(fromN) || isNaN(toN)) { showMessage('Пожалуйста, укажите корректные номера классов', 'error'); return; }
+      if (fromN > toN) { showMessage('Класс "от" не может быть больше класса "до"', 'error'); return; }
+      const title = `${subject} (${classFrom}-${classTo} класс)`;
+      const res = await createRequest({ title, subject, classFrom, classTo, description, type, skillpoints: sp });
+      if (res && res.success) {
+        showMessage('Запрос создан!', 'success');
+        setTimeout(() => { window.location.href = 'index.html'; }, 700);
+      } else {
+        const msg = (res && (res.error || res.message)) ? (res.error === 'insufficient_skillpoints' ? `Недостаточно баллов. Доступно: ${res.available || 0}` : (res.message || res.error)) : 'Не удалось создать запрос';
+        showMessage(msg, 'error');
+      }
+    });
+  }
 });

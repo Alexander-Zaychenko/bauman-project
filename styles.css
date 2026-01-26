@@ -113,6 +113,19 @@ body {
     margin-left: 10px;
 }
 
+/* Profile transition button style (used for accept/cancel on request page) */
+.btn-profile {
+    display: inline-block;
+    background-color: #0051ff;
+    color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid #0051ff;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+}
+
 /* MAIN */
 
 .hero h1 .brand {

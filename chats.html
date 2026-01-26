@@ -51,12 +51,37 @@
       if (otherId) {
         try { const ru = await fetch('/api/users/' + encodeURIComponent(otherId)); if (ru.ok) { const uj = await ru.json(); otherName = (uj.user && uj.user.name) || otherName; } } catch (e) {}
       }
-      const headerHtml = `<div class="chat-header"><div class="chat-opponent"><div class="avatar">〤</div><div class="meta"><div class="name">${escapeHtml(otherName)}</div><div class="sub">${escapeHtml(request.title || request.subject || '')}</div></div></div><div class="chat-actions" id="chatActions"></div></div>`;
-      const msgsHtml = messages.map(m => {
+      // build header
+      panelRoot.innerHTML = '';
+      const headerDiv = document.createElement('div'); headerDiv.className = 'chat-header';
+      const opponentWrap = document.createElement('div'); opponentWrap.className = 'chat-opponent';
+      const avatarEl = document.createElement('div'); avatarEl.className = 'avatar'; avatarEl.textContent = '〤';
+      const metaWrap = document.createElement('div'); metaWrap.className = 'meta';
+      const nameDiv = document.createElement('div'); nameDiv.className = 'name'; nameDiv.textContent = escapeHtml(otherName);
+      const subDiv = document.createElement('div'); subDiv.className = 'sub'; subDiv.textContent = escapeHtml(request.title || request.subject || '');
+      metaWrap.appendChild(nameDiv); metaWrap.appendChild(subDiv);
+      opponentWrap.appendChild(avatarEl); opponentWrap.appendChild(metaWrap);
+      const actionsContainer = document.createElement('div'); actionsContainer.className = 'chat-actions'; actionsContainer.id = 'chatActions';
+      headerDiv.appendChild(opponentWrap); headerDiv.appendChild(actionsContainer);
+
+      // messages container
+      const messagesContainer = document.createElement('div'); messagesContainer.className = 'chat-messages'; messagesContainer.id = 'chatMessages';
+      messages.forEach(m => {
         const fromMe = (m.senderId === userId);
-        return `<div class="chat-msg ${fromMe? 'me':''}"><div class="msg-text">${escapeHtml(m.text)}</div><div class="msg-meta">${new Date(m.createdAt||0).toLocaleString()}</div></div>`;
-      }).join('');
-      panelRoot.innerHTML = headerHtml + `<div class="chat-messages" id="chatMessages">${msgsHtml}</div><div class="chat-composer"><textarea id="chatInput" placeholder="Напишите сообщение..."></textarea><button id="chatSend" class="btn-create">Отправить</button></div>`;
+        const node = document.createElement('div'); node.className = 'chat-msg' + (fromMe ? ' me' : '');
+        const msgText = document.createElement('div'); msgText.className = 'msg-text'; msgText.textContent = escapeHtml(m.text);
+        const msgMeta = document.createElement('div'); msgMeta.className = 'msg-meta'; msgMeta.textContent = new Date(m.createdAt||0).toLocaleString();
+        node.appendChild(msgText); node.appendChild(msgMeta);
+        messagesContainer.appendChild(node);
+      });
+
+      // composer
+      const composer = document.createElement('div'); composer.className = 'chat-composer';
+      const textarea = document.createElement('textarea'); textarea.id = 'chatInput'; textarea.placeholder = 'Напишите сообщение...';
+      const sendBtn = document.createElement('button'); sendBtn.id = 'chatSend'; sendBtn.className = 'btn-create'; sendBtn.textContent = 'Отправить';
+      composer.appendChild(textarea); composer.appendChild(sendBtn);
+
+      panelRoot.appendChild(headerDiv); panelRoot.appendChild(messagesContainer); panelRoot.appendChild(composer);
 
       const actions = document.getElementById('chatActions');
       if (actions) {
@@ -98,7 +123,10 @@
         const text = (input.value || '').trim(); if (!text) return;
         const r = await postChatMessage(chat.id, userId, text);
         if (r && r.success && r.message) {
-          const mm = r.message; const node = document.createElement('div'); node.className = 'chat-msg me'; node.innerHTML = `<div class="msg-text">${escapeHtml(mm.text)}</div><div class="msg-meta">${new Date(mm.createdAt||0).toLocaleString()}</div>`;
+          const mm = r.message; const node = document.createElement('div'); node.className = 'chat-msg me';
+          const mmText = document.createElement('div'); mmText.className = 'msg-text'; mmText.textContent = escapeHtml(mm.text);
+          const mmMeta = document.createElement('div'); mmMeta.className = 'msg-meta'; mmMeta.textContent = new Date(mm.createdAt||0).toLocaleString();
+          node.appendChild(mmText); node.appendChild(mmMeta);
           messagesEl.appendChild(node); input.value = ''; messagesEl.scrollTop = messagesEl.scrollHeight;
         } else alert('Не удалось отправить сообщение');
       });
@@ -116,7 +144,10 @@
         const otherId = (userId === c.creatorId) ? c.accepterId : c.creatorId;
         let otherName = otherId ? String(otherId) : 'Собеседник';
         if (otherId) { try { const ru = await fetch('/api/users/' + encodeURIComponent(otherId)); if (ru.ok) { const uj = await ru.json(); otherName = (uj.user && uj.user.name) || otherName; } } catch (e) {} }
-        const el = document.createElement('div'); el.className = 'chat-list-item'; el.innerHTML = `<div class="chat-item-title">${escapeHtml(request.title || request.subject || 'Чат')}</div><div class="chat-item-sub">${escapeHtml(otherName)} • ${escapeHtml(c.status||'')}</div>`;
+        const el = document.createElement('div'); el.className = 'chat-list-item';
+        const titleDiv = document.createElement('div'); titleDiv.className = 'chat-item-title'; titleDiv.textContent = escapeHtml(request.title || request.subject || 'Чат');
+        const subDiv = document.createElement('div'); subDiv.className = 'chat-item-sub'; subDiv.textContent = escapeHtml(otherName) + ' • ' + escapeHtml(c.status||'');
+        el.appendChild(titleDiv); el.appendChild(subDiv);
         el.addEventListener('click', () => { // open
           // mark selected
           document.querySelectorAll('.chat-list-item').forEach(n=>n.classList.remove('active'));

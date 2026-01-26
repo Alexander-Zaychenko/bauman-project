@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Настройка профиля — SkillUp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .customize-wrap { max-width:800px;margin:36px auto;padding:18px }
+    .preview-avatar { width:84px;height:84px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;color:#0f172a;margin-bottom:12px }
+    .swatches { display:flex;gap:8px;flex-wrap:wrap }
+    .swatch { width:36px;height:36px;border-radius:8px;border:1px solid #e6e9ef;cursor:pointer }
+    .actions { margin-top:16px }
+    .btn-primary { background:#2563eb;color:#fff;padding:10px 14px;border-radius:10px;text-decoration:none;display:inline-block }
+    .btn-ghost { background:#f3f4f6;color:#111;padding:10px 14px;border-radius:10px;text-decoration:none;display:inline-block;margin-left:8px }
+  </style>
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="logo">
+      <a href="index.html">
+        <img src="images/SkillUpSquare.png" alt="SkillUp logo" class="logo-img">
+        <span class="brand-text">SkillUp<span>.ru</span></span>
+      </a>
+    </div>
+    <div class="auth"></div>
+  </div>
+</header>
+
+<main class="site-main">
+  <div class="container customize-wrap card">
+    <h2>Кастомизация профиля</h2>
+    <p>Вы можете изменить фон аватарки и фон самой карточки профиля. Каждое изменение стоит <strong>50 скиллпоинтов</strong>.</p>
+
+    <div style="display:flex;align-items:flex-start;gap:18px;margin-top:12px">
+      <div>
+        <div id="previewAvatar" class="preview-avatar">SU</div>
+        <div id="previewCard" style="margin-top:8px;padding:10px;border-radius:12px;background:#fff;border:1px solid #e6e9ef;min-width:220px">
+          <div style="font-weight:700;font-size:16px">Иванов Иван</div>
+          <div style="color:#6b7280;font-size:13px">ivan@test.ru</div>
+        </div>
+      </div>
+      <div>
+        <div style="margin-bottom:8px">Цвет аватарки:</div>
+        <input type="color" id="colorPickerAvatar" value="#e6eef6">
+        <div style="margin-top:8px;font-size:14px;color:#6b7280">Или шаблоны (аватар):</div>
+        <div class="swatches" id="swatchesAvatar">
+          <div class="swatch" data-color="#ffffff" style="background:#ffffff;border:1px solid #cbd5e1"></div>
+          <div class="swatch" data-color="#e6eef6" style="background:#e6eef6"></div>
+          <div class="swatch" data-color="#ffedd5" style="background:#ffedd5"></div>
+          <div class="swatch" data-color="#dbeafe" style="background:#dbeafe"></div>
+        </div>
+
+        <div style="margin-top:12px">Цвет карточки профиля:</div>
+        <input type="color" id="colorPickerCard" value="#ffffff">
+        <div style="margin-top:8px;font-size:14px;color:#6b7280">Или шаблоны (карточка):</div>
+        <div class="swatches" id="swatchesCard">
+          <div class="swatch" data-color="#ffffff" style="background:#ffffff;border:1px solid #cbd5e1"></div>
+          <div class="swatch" data-color="#f8fafc" style="background:#f8fafc"></div>
+          <div class="swatch" data-color="#eef2ff" style="background:#eef2ff"></div>
+          <div class="swatch" data-color="#ecfccb" style="background:#ecfccb"></div>
+          <div class="swatch" data-color="#fff7ed" style="background:#fff7ed"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <div style="margin-top:12px">Ваши поинты: <strong id="myPoints">0</strong></div>
+      <div style="margin-top:10px">
+        <a href="#" id="buyBtn" class="btn-primary">Купить за 50 скиллпоинтов</a>
+        <a href="profile.html" id="cancelBtn" class="btn-ghost">Отмена</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+  <script src="scripts.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const user = checkAuth(); if (!user) { window.location.href = 'login.html'; return; }
+  const preview = document.getElementById('previewAvatar');
+  const previewCard = document.getElementById('previewCard');
+  const pickerA = document.getElementById('colorPickerAvatar');
+  const pickerC = document.getElementById('colorPickerCard');
+  const myPoints = document.getElementById('myPoints');
+  const buyBtn = document.getElementById('buyBtn');
+  const swatchesA = Array.from(document.querySelectorAll('#swatchesAvatar .swatch'));
+  const swatchesC = Array.from(document.querySelectorAll('#swatchesCard .swatch'));
+
+  myPoints.textContent = String(Number(user.skillpoints || 0));
+  const initials = (user.name || 'SU').split(' ').map(s => s[0]).slice(0,2).join('');
+  preview.textContent = initials.toUpperCase();
+
+  const existing = getProfileCustomization(user.id || '') || {};
+  const curAvatar = existing.avatarBg || '#e6eef6';
+  const curCard = existing.cardBg || '#ffffff';
+  try { preview.style.background = curAvatar; pickerA.value = curAvatar; } catch(e) {}
+  try { previewCard.style.background = curCard; pickerC.value = curCard; } catch(e) {}
+
+  swatchesA.forEach(s => { s.addEventListener('click', function () { const c = s.getAttribute('data-color'); try { preview.style.background = c; pickerA.value = c; } catch(e) {} }); });
+  swatchesC.forEach(s => { s.addEventListener('click', function () { const c = s.getAttribute('data-color'); try { previewCard.style.background = c; pickerC.value = c; } catch(e) {} }); });
+
+  pickerA.addEventListener('input', function () { try { preview.style.background = pickerA.value; } catch(e) {} });
+  pickerC.addEventListener('input', function () { try { previewCard.style.background = pickerC.value; } catch(e) {} });
+
+  buyBtn.addEventListener('click', function (e) {
+    e.preventDefault();
+    const selectedA = pickerA.value;
+    const selectedC = pickerC.value;
+    const points = Number(user.skillpoints || 0);
+    const changedA = String(selectedA || '') !== String(existing.avatarBg || '');
+    const changedC = String(selectedC || '') !== String(existing.cardBg || '');
+    const cost = (changedA ? 50 : 0) + (changedC ? 50 : 0);
+    if (cost === 0) { showMessage('Ничего не изменено', 'error'); return; }
+    if (points < cost) { showMessage('Недостаточно поинтов для покупки', 'error'); return; }
+    // Deduct locally and save customization (merge with existing)
+    const newPoints = points - cost; user.skillpoints = newPoints; localStorage.setItem('currentUser', JSON.stringify(user));
+    const toSave = Object.assign({}, existing);
+    if (changedA) toSave.avatarBg = selectedA;
+    if (changedC) toSave.cardBg = selectedC;
+    saveProfileCustomization(user.id || '', toSave);
+    showMessage('Настройки успешно применены! Поинты списаны', 'success');
+    setTimeout(function () { window.location.href = 'profile.html'; }, 700);
+  });
+});
+</script>
+</body>
+</html>

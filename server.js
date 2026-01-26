@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS users (
   avgGrade TEXT,
   gender TEXT,
   bio TEXT,
-  profileConfigured INTEGER DEFAULT 0
+  profileConfigured INTEGER DEFAULT 0,
+  skillpoints INTEGER DEFAULT 0
 );
 `);
 
@@ -41,7 +42,9 @@ CREATE TABLE IF NOT EXISTS requests (
   creatorName TEXT,
   accepted INTEGER DEFAULT 0,
   acceptedBy INTEGER,
-  acceptedAt INTEGER
+  acceptedAt INTEGER,
+  skillpoints INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'open'
 );
 `);
 
@@ -67,6 +70,23 @@ try {
 } catch (e) {
   console.error('Error ensuring chats.updatedAt column', e);
 }
+
+// Ensure users.skillpoints and requests.skillpoints/status columns exist (for upgrades)
+try {
+  const uinfo = db.prepare("PRAGMA table_info('users')").all();
+  if (uinfo && !uinfo.some(c => c.name === 'skillpoints')) {
+    db.prepare('ALTER TABLE users ADD COLUMN skillpoints INTEGER DEFAULT 0').run();
+  }
+} catch (e) { console.error('Error ensuring users.skillpoints column', e); }
+try {
+  const rinfo = db.prepare("PRAGMA table_info('requests')").all();
+  if (rinfo && !rinfo.some(c => c.name === 'skillpoints')) {
+    db.prepare('ALTER TABLE requests ADD COLUMN skillpoints INTEGER DEFAULT 0').run();
+  }
+  if (rinfo && !rinfo.some(c => c.name === 'status')) {
+    db.prepare("ALTER TABLE requests ADD COLUMN status TEXT DEFAULT 'open'").run();
+  }
+} catch (e) { console.error('Error ensuring requests.skillpoints/status columns', e); }
 
 // Chat messages
 db.exec(`
@@ -116,7 +136,7 @@ app.post('/api/register', (req, res) => {
     const name = ((u.lastName || '') + (u.firstName ? (' ' + u.firstName) : '')).trim() || u.firstName || u.lastName || '';
     const stmt = db.prepare(`INSERT INTO users (firstName,lastName,name,email,password,schoolClass,age,city,avgGrade,gender,bio,profileConfigured) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`);
     const info = stmt.run(u.firstName||'', u.lastName||'', name, u.email, u.password, u.schoolClass||'', u.age||'', u.city||'', u.avgGrade||'', u.gender||'', u.bio||'', u.profileConfigured?1:0);
-    const user = db.prepare('SELECT id, firstName,lastName,name,email,schoolClass,age,city,avgGrade,gender,bio,profileConfigured FROM users WHERE id = ?').get(info.lastInsertRowid);
+    const user = db.prepare('SELECT id, firstName,lastName,name,email,schoolClass,age,city,avgGrade,gender,bio,profileConfigured,skillpoints FROM users WHERE id = ?').get(info.lastInsertRowid);
     res.json({ success: true, user });
   } catch (err) {
     if (err && err.code === 'SQLITE_CONSTRAINT_UNIQUE') return res.status(409).json({ error: 'email_exists' });
@@ -129,7 +149,7 @@ app.post('/api/register', (req, res) => {
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'email and password required' });
-  const user = db.prepare('SELECT id, firstName,lastName,name,email,schoolClass,age,city,avgGrade,gender,bio,profileConfigured FROM users WHERE email = ? AND password = ?').get(email, password);
+  const user = db.prepare('SELECT id, firstName,lastName,name,email,schoolClass,age,city,avgGrade,gender,bio,profileConfigured,skillpoints FROM users WHERE email = ? AND password = ?').get(email, password);
   if (!user) return res.status(401).json({ error: 'invalid_credentials' });
   res.json({ success: true, user });
 });
@@ -138,7 +158,7 @@ app.post('/api/login', (req, res) => {
 app.get('/api/users/:id', (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (!id) return res.status(400).json({ error: 'invalid id' });
-  const user = db.prepare('SELECT id, firstName,lastName,name,email,schoolClass,age,city,avgGrade,gender,bio,profileConfigured FROM users WHERE id = ?').get(id);
+  const user = db.prepare('SELECT id, firstName,lastName,name,email,schoolClass,age,city,avgGrade,gender,bio,profileConfigured,skillpoints FROM users WHERE id = ?').get(id);
   if (!user) return res.status(404).json({ error: 'not_found' });
   res.json({ user });
 });
@@ -147,7 +167,7 @@ app.get('/api/users/:id', (req, res) => {
 // List only non-accepted requests by default
 app.get('/api/requests', (req, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM requests WHERE accepted = 0 ORDER BY id DESC').all();
+    const rows = db.prepare("SELECT * FROM requests WHERE status = 'open' ORDER BY id DESC").all();
     res.json({ requests: rows });
   } catch (e) {
     console.error(e);
@@ -167,14 +187,48 @@ app.post('/api/requests', (req, res) => {
   const r = req.body || {};
   if (!r.title || !r.subject) return res.status(400).json({ error: 'title and subject required' });
   try {
-    const stmt = db.prepare('INSERT INTO requests (title,subject,text,classFrom,classTo,type,creatorId,creatorName) VALUES (?,?,?,?,?,?,?,?)');
-    const info = stmt.run(r.title, r.subject, r.text||r.description||'', r.classFrom||'', r.classTo||'', r.type||'ask', (r.creator && r.creator.id) || null, (r.creator && r.creator.name) || null);
+    // require skillpoints amount (integer >= 0)
+    const sp = parseInt(r.skillpoints, 10) || 0;
+    if (sp < 0) return res.status(400).json({ error: 'invalid_skillpoints' });
+    // If creator provided, validate balance across active requests
+    const creatorId = (r.creator && r.creator.id) || null;
+    if (creatorId) {
+      const userRow = db.prepare('SELECT id, skillpoints FROM users WHERE id = ?').get(creatorId);
+      if (!userRow) return res.status(400).json({ error: 'invalid_creator' });
+      const reserved = db.prepare("SELECT IFNULL(SUM(skillpoints),0) as s FROM requests WHERE creatorId = ? AND status IN ('open','accepted')").get(creatorId);
+      const reservedSum = (reserved && reserved.s) ? Number(reserved.s) : 0;
+      const available = (Number(userRow.skillpoints) || 0) - reservedSum;
+      if (available < sp) return res.status(400).json({ error: 'insufficient_skillpoints', available, reserved: reservedSum });
+    }
+    const stmt = db.prepare('INSERT INTO requests (title,subject,text,classFrom,classTo,type,creatorId,creatorName,skillpoints,status) VALUES (?,?,?,?,?,?,?,?,?,?)');
+    const info = stmt.run(r.title, r.subject, r.text||r.description||'', r.classFrom||'', r.classTo||'', r.type||'ask', creatorId, (r.creator && r.creator.name) || null, sp, 'open');
     const inserted = db.prepare('SELECT * FROM requests WHERE id = ?').get(info.lastInsertRowid);
     res.json({ success: true, request: inserted });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'internal' });
   }
+});
+
+// Creator cancels a request: mark cancelled and free reserved points
+app.post('/api/requests/:id/cancel', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const body = req.body || {};
+  if (!id) return res.status(400).json({ error: 'invalid id' });
+  try {
+    const request = db.prepare('SELECT * FROM requests WHERE id = ?').get(id);
+    if (!request) return res.status(404).json({ error: 'not_found' });
+    if (!body.userId || Number(body.userId) !== Number(request.creatorId)) return res.status(403).json({ error: 'not_creator' });
+    if (request.status === 'completed' || request.status === 'cancelled') return res.status(409).json({ error: 'invalid_status' });
+    // if accepted, find chat and cancel it
+    if (request.status === 'accepted') {
+      const chat = db.prepare('SELECT * FROM chats WHERE requestId = ? AND status = ?').get(id, 'active');
+      if (chat) db.prepare('UPDATE chats SET status = ?, updatedAt = ? WHERE id = ?').run('cancelled', Date.now(), chat.id);
+    }
+    db.prepare("UPDATE requests SET status = 'cancelled', accepted = 0, acceptedBy = NULL, acceptedAt = NULL WHERE id = ?").run(id);
+    const updated = db.prepare('SELECT * FROM requests WHERE id = ?').get(id);
+    res.json({ success: true, request: updated });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'internal' }); }
 });
 
 app.post('/api/requests/:id/accept', (req, res) => {
@@ -191,7 +245,7 @@ app.post('/api/requests/:id/accept', (req, res) => {
       return res.status(400).json({ error: 'cannot_accept_own_request' });
     }
     const now = Date.now();
-    db.prepare('UPDATE requests SET accepted = 1, acceptedBy = ?, acceptedAt = ? WHERE id = ?').run(body.userId || null, now, id);
+    db.prepare('UPDATE requests SET accepted = 1, acceptedBy = ?, acceptedAt = ?, status = ? WHERE id = ?').run(body.userId || null, now, 'accepted', id);
     // create chat for creator and accepter
     const info = db.prepare('INSERT INTO chats (requestId, creatorId, accepterId, status, createdAt) VALUES (?,?,?,?,?)')
       .run(id, reqRow.creatorId || null, body.userId || null, 'active', now);
@@ -255,8 +309,8 @@ app.post('/api/chats/:id/cancel', (req, res) => {
     if (chat.status !== 'active') return res.status(409).json({ error: 'invalid_status' });
     // update chat
     db.prepare('UPDATE chats SET status = ?, updatedAt = ? WHERE id = ?').run('cancelled', Date.now(), id);
-    // revert request
-    db.prepare('UPDATE requests SET accepted = 0, acceptedBy = NULL, acceptedAt = NULL WHERE id = ?').run(chat.requestId);
+    // revert request: mark as open again
+    db.prepare("UPDATE requests SET accepted = 0, acceptedBy = NULL, acceptedAt = NULL, status = 'open' WHERE id = ?").run(chat.requestId);
     const updated = db.prepare('SELECT * FROM chats WHERE id = ?').get(id);
     res.json({ success: true, chat: updated });
   } catch (e) { console.error(e); res.status(500).json({ error: 'internal' }); }
@@ -270,7 +324,36 @@ app.post('/api/chats/:id/confirm', (req, res) => {
     const chat = db.prepare('SELECT * FROM chats WHERE id = ?').get(id);
     if (!chat) return res.status(404).json({ error: 'not_found' });
     if (chat.status !== 'active') return res.status(409).json({ error: 'invalid_status' });
-    db.prepare('UPDATE chats SET status = ?, updatedAt = ? WHERE id = ?').run('completed', Date.now(), id);
+    // complete chat and transfer skillpoints from creator to accepter
+    const now = Date.now();
+    const request = db.prepare('SELECT * FROM requests WHERE id = ?').get(chat.requestId);
+    if (!request) return res.status(404).json({ error: 'request_not_found' });
+    const points = Number(request.skillpoints || 0);
+    // perform transfer in a transaction: credit accepter then debit creator, rollback on failure
+    const tx = db.transaction(() => {
+      db.prepare('UPDATE chats SET status = ?, updatedAt = ? WHERE id = ?').run('completed', now, id);
+      if (points > 0) {
+        const creatorId = request.creatorId;
+        const accepterId = chat.accepterId;
+        if (!creatorId || !accepterId) throw new Error('missing_parties');
+        if (Number(creatorId) === Number(accepterId)) throw new Error('same_user');
+        // credit accepter first
+        db.prepare('UPDATE users SET skillpoints = skillpoints + ? WHERE id = ?').run(points, accepterId);
+        // then debit creator (ensure they have enough points)
+        const dec = db.prepare('UPDATE users SET skillpoints = skillpoints - ? WHERE id = ? AND skillpoints >= ?').run(points, creatorId, points);
+        if (dec.changes === 0) throw new Error('creator_insufficient_funds');
+      }
+      db.prepare("UPDATE requests SET status = 'completed' WHERE id = ?").run(request.id);
+    });
+    try {
+      tx();
+    } catch (err) {
+      console.error('Transfer error', err);
+      if (err && err.message === 'creator_insufficient_funds') return res.status(409).json({ error: 'creator_insufficient_funds' });
+      if (err && err.message === 'missing_parties') return res.status(400).json({ error: 'missing_parties' });
+      if (err && err.message === 'same_user') return res.status(400).json({ error: 'same_user' });
+      return res.status(500).json({ error: 'transfer_failed' });
+    }
     const updated = db.prepare('SELECT * FROM chats WHERE id = ?').get(id);
     res.json({ success: true, chat: updated });
   } catch (e) { console.error(e); res.status(500).json({ error: 'internal' }); }
@@ -285,7 +368,7 @@ app.post('/api/users/:id', (req, res) => {
     const name = ((u.lastName || '') + (u.firstName ? (' ' + u.firstName) : '')).trim() || u.firstName || u.lastName || '';
     const stmt = db.prepare(`UPDATE users SET firstName=?, lastName=?, name=?, email=?, schoolClass=?, age=?, city=?, avgGrade=?, gender=?, bio=?, profileConfigured=? WHERE id=?`);
     stmt.run(u.firstName||'', u.lastName||'', name, u.email||'', u.schoolClass||'', u.age||'', u.city||'', u.avgGrade||'', u.gender||'', u.bio||'', u.profileConfigured?1:0, id);
-    const user = db.prepare('SELECT id, firstName,lastName,name,email,schoolClass,age,city,avgGrade,gender,bio,profileConfigured FROM users WHERE id = ?').get(id);
+    const user = db.prepare('SELECT id, firstName,lastName,name,email,schoolClass,age,city,avgGrade,gender,bio,profileConfigured,skillpoints FROM users WHERE id = ?').get(id);
     res.json({ success: true, user });
   } catch (err) {
     console.error(err);

@@ -55,31 +55,115 @@
       root.innerHTML = '<div style="color:#6b7280">Запрос не найден.</div>';
       return;
     }
-    // Build layout: left column with details, right column with provider profile
+    // Build layout: left column with details and actions, right column with provider profile (use DOM nodes instead of large template)
     const el = document.createElement('div');
     el.className = 'request-page';
-    el.innerHTML = `
-      <div class="request-grid">
-        <div class="request-main card">
-          <h1 class="request-title">${escapeHtml(item.title)}</h1>
-          <div class="request-sub">${escapeHtml(item.subject)} ${item.classFrom && item.classTo ? ` — ${escapeHtml(item.classFrom)}-${escapeHtml(item.classTo)} класс` : ''}</div>
-          <div class="request-body">${escapeHtml(item.text || item.description)}</div>
-        </div>
-        <aside class="request-side card">
-          <div class="provider">
-            <div class="provider-avatar">〤</div>
-            <div class="provider-name">${ escapeHtml(item.creatorName || 'Профиль автора') }</div>
-              <div class="provider-meta">ФИО: ${ escapeHtml(item.creatorName || 'Не указано') }</div>
-            <div class="provider-meta">Средний балл: —</div>
-            <div class="provider-meta">Класс: —</div>
-            <div style="margin-top:12px">
-              <button id="acceptBtn" class="btn-create">Принять</button>
-            </div>
-            <div id="acceptInfo" style="margin-top:10px;color:#16a34a;font-weight:700;display:none">Принято</div>
-          </div>
-        </aside>
-      </div>
-    `;
+
+    const grid = document.createElement('div');
+    grid.className = 'request-grid';
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = '1fr 320px';
+    grid.style.gap = '20px';
+    grid.style.alignItems = 'start';
+
+    const main = document.createElement('div');
+    main.className = 'request-main card';
+    main.style.padding = '22px';
+
+    const titleEl = document.createElement('h1');
+    titleEl.className = 'request-title';
+    titleEl.style.margin = '0 0 8px';
+    titleEl.style.fontSize = '28px';
+    titleEl.textContent = escapeHtml(item.title || '');
+
+    const subEl = document.createElement('div');
+    subEl.className = 'request-sub';
+    subEl.style.color = '#6b7280';
+    subEl.style.marginBottom = '18px';
+    let subText = escapeHtml(item.subject || '');
+    if (item.classFrom && item.classTo) subText += ' — ' + escapeHtml(item.classFrom) + '-' + escapeHtml(item.classTo) + ' класс';
+    subEl.textContent = subText;
+
+    const bodyEl = document.createElement('div');
+    bodyEl.className = 'request-body';
+    bodyEl.style.color = '#374151';
+    bodyEl.style.marginBottom = '22px';
+    bodyEl.textContent = escapeHtml(item.text || item.description || '');
+
+    // actions row
+    const actionsRow = document.createElement('div');
+    actionsRow.className = 'request-actions';
+    actionsRow.style.display = 'flex';
+    actionsRow.style.gap = '20px';
+    actionsRow.style.alignItems = 'center';
+
+    const rewardWrap = document.createElement('div');
+    const rewardLink = document.createElement('a');
+    rewardLink.href = '#';
+    rewardLink.className = 'class-card';
+    rewardLink.style.minWidth = '160px';
+    rewardLink.style.textDecoration = 'none';
+    rewardLink.style.display = 'inline-block';
+    const rewardTitle = document.createElement('div'); rewardTitle.className = 'class-title'; rewardTitle.textContent = 'Награда';
+    const rewardMeta = document.createElement('div'); rewardMeta.className = 'class-meta';
+    const countSpan = document.createElement('span'); countSpan.className = 'class-count'; countSpan.textContent = escapeHtml(String(item.skillpoints || 0));
+    rewardMeta.appendChild(countSpan);
+    rewardMeta.appendChild(document.createTextNode(' балл' + ((Number(item.skillpoints||0) !== 1) ? 'ов' : '')));
+    rewardLink.appendChild(rewardTitle);
+    rewardLink.appendChild(rewardMeta);
+    rewardWrap.appendChild(rewardLink);
+
+    const actionsButtons = document.createElement('div');
+    actionsButtons.id = 'actionsButtons';
+    actionsButtons.style.marginLeft = 'auto';
+    actionsButtons.style.display = 'inline-flex';
+    actionsButtons.style.gap = '8px';
+    actionsButtons.style.alignItems = 'center';
+
+    const acceptBtnEl = document.createElement('button');
+    acceptBtnEl.id = 'acceptBtn';
+    acceptBtnEl.className = 'btn-profile';
+    acceptBtnEl.textContent = 'Принять';
+    actionsButtons.appendChild(acceptBtnEl);
+
+    actionsRow.appendChild(rewardWrap);
+    actionsRow.appendChild(actionsButtons);
+
+    main.appendChild(titleEl);
+    main.appendChild(subEl);
+    main.appendChild(bodyEl);
+    main.appendChild(actionsRow);
+
+    const aside = document.createElement('aside');
+    aside.className = 'request-side card';
+    aside.style.padding = '18px';
+
+    const provider = document.createElement('div');
+    provider.className = 'provider';
+    provider.style.display = 'flex'; provider.style.flexDirection = 'column'; provider.style.gap = '10px';
+
+    const provTop = document.createElement('div'); provTop.style.display = 'flex'; provTop.style.gap = '12px'; provTop.style.alignItems = 'center';
+    const avatar = document.createElement('div'); avatar.className = 'provider-avatar'; avatar.style.width = '56px'; avatar.style.height = '56px'; avatar.style.borderRadius = '8px'; avatar.style.background = '#eef6ff'; avatar.style.display = 'inline-flex'; avatar.style.alignItems = 'center'; avatar.style.justifyContent = 'center'; avatar.style.fontWeight = '700'; avatar.style.color = '#0f172a';
+    const initials = (item.creatorName||'P').split(' ').map(s=>s[0]).slice(0,2).join(''); avatar.textContent = initials;
+    const provInfo = document.createElement('div');
+    const provName = document.createElement('div'); provName.className = 'provider-name'; provName.style.fontWeight = '700'; provName.textContent = escapeHtml(item.creatorName || 'Профиль автора');
+    const provFio = document.createElement('div'); provFio.style.color = '#6b7280'; provFio.textContent = 'ФИО: ' + escapeHtml(item.creatorName || 'Не указано');
+    provInfo.appendChild(provName); provInfo.appendChild(provFio);
+    provTop.appendChild(avatar); provTop.appendChild(provInfo);
+
+    const meta1 = document.createElement('div'); meta1.className = 'provider-meta'; meta1.style.color = '#6b7280'; meta1.textContent = 'Средний балл: —';
+    const meta2 = document.createElement('div'); meta2.className = 'provider-meta'; meta2.style.color = '#6b7280'; meta2.textContent = 'Класс: —';
+    const acceptInfo = document.createElement('div'); acceptInfo.id = 'acceptInfo'; acceptInfo.style.marginTop = '10px'; acceptInfo.style.color = '#16a34a'; acceptInfo.style.fontWeight = '700'; acceptInfo.style.display = 'none'; acceptInfo.textContent = 'Принято';
+
+    provider.appendChild(provTop);
+    provider.appendChild(meta1);
+    provider.appendChild(meta2);
+    provider.appendChild(acceptInfo);
+    aside.appendChild(provider);
+
+    grid.appendChild(main);
+    grid.appendChild(aside);
+    el.appendChild(grid);
     root.innerHTML = '';
     root.appendChild(el);
     // wire accept button
@@ -90,18 +174,72 @@
       const current = (window.checkAuth && checkAuth()) || null;
       // disable if already accepted
       if (item.accepted) { btn.disabled = true; btn.textContent = 'Принято'; info.style.display = 'block'; }
-      // prevent accepting your own request on client side as well
-      if (current && item.creatorId && Number(current.id) === Number(item.creatorId)) { btn.disabled = true; btn.textContent = 'Ваш запрос'; }
-      btn.addEventListener('click', async function () {
+      // prevent accepting your own request on client side as well — creator should not see the accept button
+      if (current && item.creatorId && Number(current.id) === Number(item.creatorId)) { btn.style.display = 'none'; }
+      // container for cancel/decline buttons (both sides)
+      const extraActionsWrap = document.createElement('div'); extraActionsWrap.id = 'extraActions'; extraActionsWrap.style.display = 'inline-flex'; extraActionsWrap.style.gap = '8px';
+      const actionsTarget = document.getElementById('actionsButtons') || (btn.parentNode && btn.parentNode.parentNode) || document.body;
+      actionsTarget.appendChild(extraActionsWrap);
+      async function findChatForUser() {
+        try { if (!current || !current.id) return null; const chats = await getChats(current.id); if (!chats || !chats.length) return null; return chats.find(c => Number(c.requestId) === Number(item.id)); } catch (e) { return null; }
+      }
+      const doAccept = async function () {
         const user = (window.checkAuth && checkAuth()) || null;
-        if (!user) { alert('Пожалуйста, войдите, чтобы принять запрос'); window.location.href = 'login.html'; return; }
+        if (!user) { showMessage('Пожалуйста, войдите, чтобы принять запрос', 'error'); window.location.href = 'login.html'; return; }
         const res = (window.acceptRequestApi) ? await acceptRequestApi(item.id, user.id) : { success: false };
         if (res && res.success) {
-          btn.disabled = true; btn.textContent = 'Принято'; if (info) { info.style.display = 'block'; info.textContent = 'Принято вами'; }
+          btn.disabled = true;
+          btn.textContent = 'Принято';
+          if (info) { info.style.display = 'block'; info.textContent = 'Принято вами'; }
           // if server returned a chat, open it
           try { if (res.chat && res.chat.id) { window.location.href = 'chats.html?chatId=' + encodeURIComponent(res.chat.id); } } catch (e) {}
-        } else { alert('Не удалось принять запрос'); }
-      });
+        } else { showMessage('Не удалось принять запрос', 'error'); }
+      };
+
+      // add cancel/decline handlers for both sides
+      const attachCancelButtons = async () => {
+        extraActionsWrap.innerHTML = '';
+        const user = (window.checkAuth && checkAuth()) || null;
+        // creator can cancel open or accepted request via requests/:id/cancel
+        if (user && item.creatorId && Number(user.id) === Number(item.creatorId)) {
+          const cancelBtn = document.createElement('button');
+          cancelBtn.textContent = item.status === 'accepted' ? 'Отменить' : 'Отменить запрос';
+          cancelBtn.className = 'btn-profile';
+              cancelBtn.addEventListener('click', async (ev) => {
+            ev.preventDefault();
+            if (!confirm('Вы уверены, что хотите отменить запрос?')) return;
+            try {
+              const res = await fetch('/api/requests/' + encodeURIComponent(item.id) + '/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id }) });
+              const j = await res.json();
+                  if (j && j.success) { showMessage('Запрос отменён', 'success'); try { await refreshCurrentUser(); } catch (e) {} setTimeout(() => { window.location.href = 'index.html'; }, 700); }
+              else showMessage((j && (j.error || j.message)) || 'Не удалось отменить', 'error');
+            } catch (e) { showMessage('Серверная ошибка', 'error'); }
+          });
+          extraActionsWrap.appendChild(cancelBtn);
+        }
+        // if accepted, accepter can cancel via chat cancel endpoint
+        if (item.accepted && user) {
+          const chat = await findChatForUser();
+          if (chat && chat.id && Number(user.id) === Number(chat.accepterId)) {
+            const declineBtn = document.createElement('button');
+            declineBtn.textContent = 'Отказаться';
+            declineBtn.className = 'btn-profile';
+            declineBtn.addEventListener('click', async (ev) => {
+              ev.preventDefault();
+              if (!confirm('Вы уверены, что хотите отказаться от выполнения?')) return;
+              try {
+                const j = await cancelChat(chat.id);
+                if (j && j.success) { showMessage('Вы отказались от выполнения', 'success'); setTimeout(() => { window.location.reload(); }, 700); }
+                else showMessage((j && (j.error || j.message)) || 'Не удалось отказаться', 'error');
+              } catch (e) { showMessage('Серверная ошибка', 'error'); }
+            });
+            extraActionsWrap.appendChild(declineBtn);
+          }
+        }
+      };
+      // initial attach
+      attachCancelButtons();
+      btn.addEventListener('click', doAccept);
     })();
   });
 </script>

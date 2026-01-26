@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS users (
   avgGrade TEXT,
   gender TEXT,
   bio TEXT,
-  profileConfigured INTEGER DEFAULT 0
+  profileConfigured INTEGER DEFAULT 0,
+  skillpoints INTEGER DEFAULT 0
 );
 `);
 
@@ -51,7 +52,9 @@ CREATE TABLE IF NOT EXISTS requests (
   creatorName TEXT,
   accepted INTEGER DEFAULT 0,
   acceptedBy INTEGER,
-  acceptedAt INTEGER
+  acceptedAt INTEGER,
+  skillpoints INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'open'
 );
 `);
 const rcount = db.prepare('SELECT COUNT(1) as c FROM requests').get();
