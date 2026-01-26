@@ -4,7 +4,7 @@
 */
 
 // Client session: stored locally only for UI session (server owns data)
-function checkAuth() { const u = localStorage.getItem('currentUser'); return u ? JSON.parse(u) : null; }
+function checkAuth() { try { const u = localStorage.getItem('currentUser'); return u ? JSON.parse(u) : null; } catch (e) { console.error('checkAuth parse error', e); try { localStorage.removeItem('currentUser'); } catch (er) {} return null; } }
 function logout() { localStorage.removeItem('currentUser'); }
 
 function escapeHtml(s) { return String(s || '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

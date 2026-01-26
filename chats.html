@@ -9,7 +9,7 @@
 <body>
 <header class="site-header">
   <div class="container header-inner">
-    <div class="logo"><a href="index.html"><img src="images/SkillUpSquare.png" class="logo-img"><span class="brand-text">SkillUp<span>.ru</span></span></a></div>
+    <div class="logo"><a href="index.html"><img src="images/SkillUpSquare.png" class="logo-img"><span class="brand-text">SkillUp</span></a></div>
     <div class="auth"><a href="login.html">Войти</a></div>
   </div>
 </header>
@@ -30,7 +30,7 @@
     </section>
   </div>
 </main>
-<footer class="site-footer"><div class="container footer-inner"><div class="footer-left"><div class="logo footer-logo"><a href="index.html">SkillUp<span>.ru</span></a></div><p class="footer-copy">© 2025 SkillUp.</p></div></div></footer>
+<footer class="site-footer"><div class="container footer-inner"><div class="footer-left"><div class="logo footer-logo"><a href="index.html">SkillUp</a></div><p class="footer-copy">© 2025 SkillUp.</p></div></div></footer>
 <script src="scripts.js"></script>
 <script>
   function getQueryParam(name) { try { return new URLSearchParams(window.location.search).get(name); } catch (e) { return null; } }
@@ -78,8 +78,8 @@
       // composer
       const composer = document.createElement('div'); composer.className = 'chat-composer';
       const textarea = document.createElement('textarea'); textarea.id = 'chatInput'; textarea.placeholder = 'Напишите сообщение...';
-      const sendBtn = document.createElement('button'); sendBtn.id = 'chatSend'; sendBtn.className = 'btn-create'; sendBtn.textContent = 'Отправить';
-      composer.appendChild(textarea); composer.appendChild(sendBtn);
+      const sendBtnEl = document.createElement('button'); sendBtnEl.id = 'chatSend'; sendBtnEl.className = 'btn-create'; sendBtnEl.textContent = 'Отправить';
+      composer.appendChild(textarea); composer.appendChild(sendBtnEl);
 
       panelRoot.appendChild(headerDiv); panelRoot.appendChild(messagesContainer); panelRoot.appendChild(composer);
 
@@ -116,7 +116,7 @@
       }
 
       // send handler
-      const sendBtn = document.getElementById('chatSend');
+      const sendBtn = sendBtnEl;
       const input = document.getElementById('chatInput');
       const messagesEl = document.getElementById('chatMessages');
       sendBtn.addEventListener('click', async () => {
