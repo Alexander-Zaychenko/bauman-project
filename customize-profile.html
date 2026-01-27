@@ -37,8 +37,8 @@
       <div>
         <div id="previewAvatar" class="preview-avatar">SU</div>
         <div id="previewCard" style="margin-top:8px;padding:10px;border-radius:12px;background:#fff;border:1px solid #e6e9ef;min-width:220px">
-          <div style="font-weight:700;font-size:16px">Иванов Иван</div>
-          <div style="color:#6b7280;font-size:13px">ivan@test.ru</div>
+          <div id="previewName" style="font-weight:700;font-size:16px">Пользователь</div>
+          <div id="previewEmail" style="color:#6b7280;font-size:13px"></div>
         </div>
       </div>
       <div>
@@ -91,6 +91,9 @@ document.addEventListener('DOMContentLoaded', function () {
   myPoints.textContent = String(Number(user.skillpoints || 0));
   const initials = (user.name || 'SU').split(' ').map(s => s[0]).slice(0,2).join('');
   preview.textContent = initials.toUpperCase();
+  // Подставим имя и email текущего пользователя в превью
+  try { const nameEl = document.getElementById('previewName'); if (nameEl) nameEl.textContent = user.name || 'Пользователь'; } catch(e) {}
+  try { const emailEl = document.getElementById('previewEmail'); if (emailEl) emailEl.textContent = user.email || ''; } catch(e) {}
 
   const existing = getProfileCustomization(user.id || '') || {};
   const curAvatar = existing.avatarBg || '#e6eef6';
@@ -109,8 +112,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const selectedA = pickerA.value;
     const selectedC = pickerC.value;
     const points = Number(user.skillpoints || 0);
-    const changedA = String(selectedA || '') !== String(existing.avatarBg || '');
-    const changedC = String(selectedC || '') !== String(existing.cardBg || '');
+      // compare with currently shown values (curAvatar/curCard) — existing may be empty
+    const changedA = String(selectedA || '') !== String(curAvatar || '');
+    const changedC = String(selectedC || '') !== String(curCard || '');
     const cost = (changedA ? 50 : 0) + (changedC ? 50 : 0);
     if (cost === 0) { showMessage('Ничего не изменено', 'error'); return; }
     if (points < cost) { showMessage('Недостаточно поинтов для покупки', 'error'); return; }

@@ -87,6 +87,23 @@ async function getChatById(id) {
   try { const res = await fetch('/api/chats/' + encodeURIComponent(id)); const j = await res.json(); return j || null; } catch (e) { console.error(e); return null; }
 }
 
+// Simple chat list renderer used for periodic refresh on pages showing chats
+async function renderChatListSimple(containerId, userId) {
+  try {
+    const wrap = document.getElementById(containerId); if (!wrap) return;
+    const chats = await getChats(userId);
+    if (!chats || chats.length === 0) { wrap.innerHTML = '<div style="color:#6b7280">Чатов пока нет.</div>'; return; }
+    wrap.innerHTML = '';
+    for (const c of chats) {
+      const el = document.createElement('div'); el.className = 'chat-list-item';
+      const title = escapeHtml((c.title || c.requestTitle || (c.request && c.request.title) || 'Чат'));
+      const other = escapeHtml(c.otherName || 'Собеседник');
+      el.innerHTML = '<div class="chat-item-title">' + title + '</div><div class="chat-item-sub">' + other + ' • ' + escapeHtml(c.status||'') + '</div>';
+      wrap.appendChild(el);
+    }
+  } catch (e) { console.error('renderChatListSimple error', e); }
+}
+
 async function postChatMessage(chatId, senderId, text) {
   try { const res = await fetch('/api/chats/' + encodeURIComponent(chatId) + '/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senderId, text }) }); return await res.json(); } catch (e) { console.error(e); return { success: false }; }
 }
@@ -176,6 +193,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (cardEl) cardEl.style.background = custom.cardBg;
           }
         }
+
+          // Auto-refresh: обновляем поинты, список заявок и чатов периодически
+          try {
+            setInterval(() => { (async () => {
+              try {
+                await refreshCurrentUser();
+                const user = checkAuth();
+                if (user) {
+                  // обновим видимые элементы с поинтами
+                  const spEls = document.querySelectorAll('#myPoints, #userSkillpointsValue');
+                  spEls.forEach(el => { if (el) el.textContent = String(Number(user.skillpoints || 0)); });
+                  renderAuthWidget();
+                }
+                // обновим заявки и счётчики
+                if (document.getElementById('requestsList')) {
+                  await renderRequests('requestsList', null);
+                  await updateSubjectCounts();
+                }
+                // обновим список чатов (простая версия)
+                if (document.getElementById('chatListRoot')) {
+                  const u = checkAuth(); if (u && u.id) await renderChatListSimple('chatListRoot', u.id);
+                }
+              } catch (e) { console.error('autoRefresh inner error', e); }
+            })(); }, 8000);
+          } catch (e) { console.error('autoRefresh setup error', e); }
       } catch (e) {}
     }
     const logoutBtn = document.getElementById('logoutBtn'); if (logoutBtn) logoutBtn.addEventListener('click', (e) => { e.preventDefault(); logout(); window.location.href = 'index.html'; });
